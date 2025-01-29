@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Resizable Panels</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        #container{
+            width: 800px;
+            height: 800px;
+            overflow: scroll;
+        }
+        /* #container {
+            
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        } */
+         /* 
+        .box {
+            width: 200px;
+            height: 200px;
+          
+           margin: 5px;
+          
+           
+        } */
+           #container {
+            display: grid;
+          gap: 20px;
+            grid-template-areas: 
+            "box1 box1 box3"
+            "box2 box2 box3"
+            ;
+
+            padding: 20px;
+        }
+        .box1{
+            grid-area: box1;
+
+        }
+        .box2{
+            grid-area: box2;
+        }
+        .box3{
+            grid-area: box3;
+        }
+
+        div{
+            border: 2px solid black;
+        }
+
+
+      
+
+    
+    </style>
+</head>
+<!-- 
+  4 panels -->
+
+<body>
+    <div id="container">
+        <div class="box box1">
+            Panel 1
+          
+        </div>
+        <div class="box box2">
+            Panel 2
+         
+        </div>
+        <div class="box box3">
+            Panel 3
+          
+        </div>
+    </div>
+
+
+    <script>
+        function detect_border(e, element) {
+            const rect = element.getBoundingClientRect();
+            //
+            // Distance from left border
+            const left = Math.abs(rect.left - e.clientX);    
+            //
+            // Distance from top border
+            const top = Math.abs(rect.top - e.clientY);     
+            //
+            // Distance from right border
+            const right = Math.abs(rect.right - e.clientX);   
+            //
+            // Distance from bottom border
+            const bottom = Math.abs(rect.bottom - e.clientY);  
+            const border_threshold = 20;
+            //
+            // Check for corners first
+            if (left < border_threshold && top < border_threshold) {
+                element.style.cursor = 'nwse-resize';
+                return 'top-left';
+            }
+            if (right < border_threshold && top < border_threshold) {
+                element.style.cursor = 'nesw-resize';
+                return 'top-right';
+            }
+            if (left < border_threshold && bottom < border_threshold) {
+                element.style.cursor = 'nesw-resize';
+                return 'bottom-left';
+            }
+            if (right < border_threshold && bottom < border_threshold) {
+                element.style.cursor = 'nwse-resize';
+                return 'bottom-right';
+            }
+            //
+            // Check edges
+            if (top < border_threshold) {
+                element.style.cursor = 'n-resize';
+                return 'top';
+            }
+            if (bottom < border_threshold) {
+                element.style.cursor = 'ns-resize';
+                return 'bottom';
+            }
+            if (left < border_threshold) {
+                element.style.cursor = 'ew-resize';
+                return 'left';
+            }
+            if (right < border_threshold) {
+                element.style.cursor = 'ew-resize';
+                return 'right';
+            }
+
+            element.style.cursor = 'default';
+            return null;
+    }
+
+        const panels = document.querySelectorAll("div");
+        const status = document.getElementById('status');
+
+        let is_resizing = false;
+        let current_panel = null;
+        let current_border = null;
+        //
+        //start_x/y is the mouse initial position
+        //start_width/height are the panels initial dimensions
+        let start_x, start_y, start_width, start_height;
+        //
+        // Mouse down event listener for resize operation
+        //
+        // Check each panel to see if we're clicking near a border
+        panels.forEach(panel => {
+            panel.addEventListener('mousedown', (e) => {
+            const border = detect_border(e, panel);
+            //
+            //
+            if (border) {
+                is_resizing = true;
+                current_panel = panel;
+                current_border = border;
+                //
+                // Store initial mouse position and element dimensions
+                start_x = e.clientX;
+                start_y = e.clientY;
+                start_width = panel.offsetWidth;
+                start_height = panel.offsetHeight;
+            }
+        });
+        });
+
+        //
+        // Mouse move event listener - Handles the actual resizing
+        document.addEventListener('mousemove', (e) => {
+            e.preventDefault();
+            //
+            // If not resizing, just update cursors and return
+            if (!is_resizing) {
+                panels.forEach(box => {
+                    detect_border(e, box);
+                });
+                return;
+            }
+            //
+            // Handle resizing based on which border/corner is being dragged
+            // Calculate new dimensions based on mouse movement from start position
+            //
+            // Adjust width based on horizontal mouse movement
+            if (current_border.includes('right')) {
+                const width = start_width + (e.clientX - start_x);
+                current_panel.style.width = `${Math.max(100, width)}px`;
+            }
+            //
+            // Adjust width opposite to mouse movement
+            if (current_border.includes('left')) {
+                const width = start_width - (e.clientX - start_x);
+                current_panel.style.width = `${Math.max(100, width)}px`;
+            }
+            //
+            // Adjust height based on vertical mouse movement
+            if (current_border.includes('bottom')) {
+                const height = start_height + (e.clientY - start_y);
+                current_panel.style.height = `${Math.max(100, height)}px`;
+            }
+            //
+            // Adjust height inversely to mouse movement
+            if (current_border.includes('top')) {
+                const height = start_height - (e.clientY - start_y);
+                current_panel.style.height = `${Math.max(100, height)}px`;
+            }
+        });
+
+        //
+        // Mouse up event listener,after resize operation
+        document.addEventListener('mouseup', () => {
+            is_resizing = false;
+            current_panel = null;
+            current_border = null;
+        });
+
+        //
+        // Mouse leave event listener for each panel
+        // Resets cursor when mouse leaves panel when not resizing
+        panels.forEach(box => {
+            box.addEventListener('mouseleave', () => {
+                if (!is_resizing) {
+                    box.style.cursor = 'default';
+                }
+            });
+        });
+
+       
+    </script>
+</body>
+</html>

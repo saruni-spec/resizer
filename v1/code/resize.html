@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resizable Elements TypeScript Example</title>
+    <link rel="stylesheet" href="resize.css">
+</head>
+<body>
+    <div class="rsize">Div 1
+        <div>Nested Div 1.1</div>
+        <div>Nested Div 1.2</div>
+    </div>
+    <div>Div 2
+        <div>Nested Div 2.1</div>
+        <div>Nested Div 2.2</div>
+    </div>
+
+    <script type="module">
+        import { resizable_grids } from './resize.js';  
+
+        // Initialize the resizable functionality
+        const resizable = new resizable_grids();
+        resizable.initialize();
+
+      
+    </script>
+</body>
+</html>

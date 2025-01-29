@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Divs Resizable</title>
+    <style>
+        div {
+            position: relative;
+            min-width: 50px;
+            min-height: 50px;
+            margin: 10px;
+            background: lightblue;
+            border: 1px solid #ccc;
+        }
+
+        /* Borders for resizing */
+        .resize-border {
+            position: absolute;
+            background: transparent;
+            z-index: 1000;
+            padding: 0;
+            margin: 0;
+            min-width: 0;
+            min-height: 0;
+            border: none;
+            background: transparent !important;
+        }
+
+        .resize-border.top, .resize-border.bottom {
+            height: 10px;
+            left: 0;
+            right: 0;
+            cursor: ns-resize;
+        }
+
+        .resize-border.top {
+            top: -5px;
+        }
+
+        .resize-border.bottom {
+            bottom: -5px;
+        }
+
+        .resize-border.left, .resize-border.right {
+            width: 10px;
+            top: 0;
+            bottom: 0;
+            cursor: ew-resize;
+        }
+
+        .resize-border.left {
+            left: -5px;
+        }
+
+        .resize-border.right {
+            right: -5px;
+        }
+
+        /* Add visual feedback for resizable elements */
+        div:hover {
+            outline: 2px dashed #666;
+        }
+    </style>
+</head>
+<body>
+    <div>Div 1
+        <div>Nested Div 1.1</div>
+        <div>Nested Div 1.2</div>
+    </div>
+    <div>Div 2
+        <div>Nested Div 2.1</div>
+        <div>Nested Div 2.2</div>
+    </div>
+
+    <script>
+        function makeResizable(element) {
+            // Skip if already resizable
+            if (element.dataset.resizable) return;
+            
+            // Mark as resizable
+            element.dataset.resizable = true;
+
+            // Create border elements
+            const directions = ['top', 'right', 'bottom', 'left'];
+            const borders = {};
+
+            directions.forEach(direction => {
+                const border = document.createElement('div');
+                border.className = `resize-border ${direction}`;
+                element.appendChild(border);
+                borders[direction] = border;
+            });
+
+            let isResizing = false;
+            let direction = '';
+            let startX, startY, startWidth, startHeight;
+
+            const onMouseDown = (event, dir) => {
+                event.stopPropagation(); // Prevent event bubbling
+                isResizing = true;
+                direction = dir;
+                startX = event.clientX;
+                startY = event.clientY;
+                startWidth = element.offsetWidth;
+                startHeight = element.offsetHeight;
+                
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            };
+
+            const onMouseMove = (event) => {
+                if (!isResizing) return;
+                
+                event.preventDefault();
+                
+                const minWidth = 50;
+                const minHeight = 50;
+                
+                if (direction === 'right') {
+                    const newWidth = Math.max(minWidth, startWidth + (event.clientX - startX));
+                    element.style.width = `${newWidth}px`;
+                } else if (direction === 'bottom') {
+                    const newHeight = Math.max(minHeight, startHeight + (event.clientY - startY));
+                    element.style.height = `${newHeight}px`;
+                } else if (direction === 'left') {
+                    const delta = startX - event.clientX;
+                    const newWidth = Math.max(minWidth, startWidth + delta);
+                    if (newWidth > minWidth) {
+                        element.style.width = `${newWidth}px`;
+                        element.style.left = `${element.offsetLeft - delta}px`;
+                    }
+                } else if (direction === 'top') {
+                    const delta = startY - event.clientY;
+                    const newHeight = Math.max(minHeight, startHeight + delta);
+                    if (newHeight > minHeight) {
+                        element.style.height = `${newHeight}px`;
+                        element.style.top = `${element.offsetTop - delta}px`;
+                    }
+                }
+            };
+
+            const onMouseUp = () => {
+                isResizing = false;
+                direction = '';
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+
+            // Add event listeners to borders
+            directions.forEach(dir => {
+                borders[dir].addEventListener('mousedown', (e) => onMouseDown(e, dir));
+            });
+        }
+
+        // Make all divs resizable (including newly added ones)
+        function makeAllDivsResizable() {
+            document.querySelectorAll('div').forEach(div => {
+                if (!div.classList.contains('resize-border')) {
+                    makeResizable(div);
+                }
+            });
+        }
+
+        // Initial setup
+        makeAllDivsResizable();
+
+        // Optional: Handle dynamically added divs
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === 1 && node.tagName === 'DIV') {
+                        makeResizable(node);
+                    }
+                });
+            });
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Resizable Panels</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* #container {
+            width: 800px;
+            height: 800px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 20px;
+        } */
+           #container {
+            width: 800px;
+            height: 800px;
+            display: grid;
+            gap:20px;
+            
+            /* grid-template-areas: 
+            "box1 box1 box3"
+            "box2 box2 box3"
+            ;
+            grid-template-columns: 10% 70%;
+            grid-template-rows: 40% 40%;
+            padding: 20px; */
+        }
+        /* .box1{
+            grid-area: box1;
+
+        }
+        .box2{
+            grid-area: box2;
+        }
+        .box3{
+            grid-area: box3;
+        } */
+
+        .box {
+            width: 200px;
+            height: 200px;
+           border: 2px solid black;
+           margin: 5px;
+          
+           
+        }
+
+
+      
+
+    
+    </style>
+</head>
+<body>
+    <div class="box" id="container">
+        <div class="box box1">
+            Panel 1
+          
+        </div>
+        <div class="box box2">
+            Panel 2
+         
+        </div>
+        <div class="box box3">
+            Panel 3
+          
+        </div>
+    </div>
+
+
+    <script>
+      function detect_border(e, element) {
+    const rect = element.getBoundingClientRect();
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+    const border_threshold = 20;
+
+    // Calculate point-to-corner distances using Pythagorean theorem
+    const corners = {
+        'top-left': {
+            distance: Math.sqrt(
+                Math.pow(mouseX - rect.left, 2) + 
+                Math.pow(mouseY - rect.top, 2)
+            ),
+            cursor: 'nwse-resize'
+        },
+        'top-right': {
+            distance: Math.sqrt(
+                Math.pow(mouseX - rect.right, 2) + 
+                Math.pow(mouseY - rect.top, 2)
+            ),
+            cursor: 'nesw-resize'
+        },
+        'bottom-left': {
+            distance: Math.sqrt(
+                Math.pow(mouseX - rect.left, 2) + 
+                Math.pow(mouseY - rect.bottom, 2)
+            ),
+            cursor: 'nesw-resize'
+        },
+        'bottom-right': {
+            distance: Math.sqrt(
+                Math.pow(mouseX - rect.right, 2) + 
+                Math.pow(mouseY - rect.bottom, 2)
+            ),
+            cursor: 'nwse-resize'
+        }
+    };
+
+    // Calculate point-to-line distances for edges
+    const edges = {
+        'top': {
+            distance: Math.abs(mouseY - rect.top),
+            inRange: mouseX >= rect.left && mouseX <= rect.right,
+            cursor: 'n-resize'
+        },
+        'bottom': {
+            distance: Math.abs(mouseY - rect.bottom),
+            inRange: mouseX >= rect.left && mouseX <= rect.right,
+            cursor: 'ns-resize'
+        },
+        'left': {
+            distance: Math.abs(mouseX - rect.left),
+            inRange: mouseY >= rect.top && mouseY <= rect.bottom,
+            cursor: 'ew-resize'
+        },
+        'right': {
+            distance: Math.abs(mouseX - rect.right),
+            inRange: mouseY >= rect.top && mouseY <= rect.bottom,
+            cursor: 'ew-resize'
+        }
+    };
+
+    // Check corners first (they take precedence)
+    for (const [corner, info] of Object.entries(corners)) {
+        if (info.distance < border_threshold) {
+            element.style.cursor = info.cursor;
+            return corner;
+        }
+    }
+
+    // Then check edges
+    for (const [edge, info] of Object.entries(edges)) {
+        if (info.distance < border_threshold && info.inRange) {
+            element.style.cursor = info.cursor;
+            return edge;
+        }
+    }
+
+    // If not near any border
+    element.style.cursor = 'default';
+    return null;
+}
+
+        const boxes = document.querySelectorAll('.box');
+        const status = document.getElementById('status');
+
+        let isResizing = false;
+        let currentBox = null;
+        let currentBorder = null;
+        let startX, startY, startWidth, startHeight;
+
+        boxes.forEach(box => {
+            box.addEventListener('mousedown', (e) => {
+                const border = detect_border(e, box);
+                if (border) {
+                    isResizing = true;
+                    currentBox = box;
+                    currentBorder = border;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    startWidth = box.offsetWidth;
+                    startHeight = box.offsetHeight;
+                    
+                 
+                }
+            });
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            e.preventDefault();
+
+            if (!isResizing) {
+                boxes.forEach(box => {
+                    const border = detect_border(e, box);
+                  
+                });
+                return;
+            }
+
+            
+            
+            if (currentBorder.includes('right')) {
+                const width = startWidth + (e.clientX - startX);
+                currentBox.style.width = `${Math.max(100, width)}px`;
+            }
+            
+            if (currentBorder.includes('left')) {
+                const width = startWidth - (e.clientX - startX);
+                currentBox.style.width = `${Math.max(100, width)}px`;
+            }
+            
+            if (currentBorder.includes('bottom')) {
+                const height = startHeight + (e.clientY - startY);
+                currentBox.style.height = `${Math.max(100, height)}px`;
+            }
+            
+            if (currentBorder.includes('top')) {
+                const height = startHeight - (e.clientY - startY);
+                currentBox.style.height = `${Math.max(100, height)}px`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isResizing = false;
+            currentBox = null;
+            currentBorder = null;
+            
+        });
+
+        boxes.forEach(box => {
+            box.addEventListener('mouseleave', () => {
+                if (!isResizing) {
+               
+                    box.style.cursor = 'default';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

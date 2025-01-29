@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Border resize</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .box {
+            width: 200px;
+            height: 200px;
+            background: lightblue;
+
+            
+        }
+
+       
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="box" id="box1">
+            Panel 1
+          
+        </div>
+        <div class="box" id="box2">
+            Panel 2
+           
+        </div>
+    </div>
+    
+
+    <script>
+        //
+        // Detect which border of the element the mouse is near
+        function detect_border(e, element) {
+            const rect = element.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const border_threshold = 20;
+
+            // Check for corners first
+            if (Math.abs(x) < border_threshold && Math.abs(y) < border_threshold) {
+                // Top-left corner
+            
+                
+                element.style.cursor = 'nwse-resize';
+                return 'top-left corner';
+            }
+            if (Math.abs(x) > rect.width - border_threshold && Math.abs(y) < border_threshold) {
+                // Top-right corner
+            
+                
+                element.style.cursor = 'nesw-resize';
+                return 'top-right corner';
+            }
+            if (Math.abs(x) < border_threshold && Math.abs(y) > rect.height - border_threshold) {
+                // Bottom-left corner
+                
+                element.style.cursor = 'nesw-resize';
+                return 'bottom-left corner';
+            }
+            if (Math.abs(x) > rect.width - border_threshold && Math.abs(y) > rect.height - border_threshold) {
+                // Bottom-right corner
+        
+                element.style.cursor = 'nwse-resize';
+                return 'bottom-right corner';
+            }
+
+            // If not at corners, check for edges (your existing code)
+            if (Math.abs(y) < border_threshold) {
+                
+                element.style.cursor = 'row-resize';
+                return 'top';
+            }
+            if (Math.abs(y) > rect.height - border_threshold) {
+                element.style.cursor = 'row-resize';
+                return 'bottom';
+            }
+            if (Math.abs(x) < border_threshold) {
+                
+                element.style.cursor = 'col-resize';
+                return 'left';
+            }
+            if (Math.abs(x) > rect.width - border_threshold) {
+            
+                element.style.cursor = 'col-resize';
+                return 'right';
+            }
+
+            element.style.cursor = 'default';
+            return null;
+        }
+        //
+        // Detect which border of the element the mouse is near
+        function detect_border(e, element) {
+            const rect = element.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const border_threshold = 20;
+
+            // Check for corners first
+            // For each corner, we check if the mouse is within the threshold distance
+            // in both x and y directions
+            
+            // Top-left corner
+            if (x < border_threshold && y < border_threshold) {
+            
+                
+                element.style.cursor = 'nwse-resize';
+                return 'top-left corner';
+            }
+            
+            // Top-right corner - check within threshold of right edge and top
+            if (x > rect.width - border_threshold && x < rect.width + border_threshold && 
+                y < border_threshold) {
+            
+                
+                element.style.cursor = 'nesw-resize';
+                return 'top-right corner';
+            }
+            
+            // Bottom-left corner - check within threshold of left edge and bottom
+            if (x < border_threshold && 
+                y > rect.height - border_threshold && y < rect.height + border_threshold) {
+                
+                element.style.cursor = 'nesw-resize';
+                return 'bottom-left corner';
+            }
+            
+            // Bottom-right corner - check within threshold of both right and bottom edges
+            if (x > rect.width - border_threshold && x < rect.width + border_threshold && 
+                y > rect.height - border_threshold && y < rect.height + border_threshold) {
+                
+                element.style.cursor = 'nwse-resize';
+                return 'bottom-right corner';
+            }
+
+            // If not at corners, check for edges
+            // Each edge check ensures mouse is within threshold distance on both sides of the edge
+            
+            // Top edge
+            if (Math.abs(y) < border_threshold) {
+            
+                element.style.cursor = 'row-resize';
+                return 'top';
+            }
+            
+            // Bottom edge
+            if (y > rect.height - border_threshold && y < rect.height + border_threshold) {
+                element.style.cursor = 'row-resize';
+                return 'bottom';
+            }
+            
+            // Left edge
+            if (Math.abs(x) < border_threshold) {
+                
+                element.style.cursor = 'col-resize';
+                return 'left';
+            }
+            
+            // Right edge
+            if (x > rect.width - border_threshold && x < rect.width + border_threshold) {
+                
+                element.style.cursor = 'col-resize';
+                return 'right';
+            }
+
+            // If no border or corner is detected, reset cursor and return null
+            element.style.cursor = 'default';
+            return null;
+        }
+        const boxes = document.querySelectorAll('.box');
+        const status = document.getElementById('status');
+        //
+        // Add mousemove event listener to each box
+        document.addEventListener('mousemove', (e) => {
+            boxes.forEach(box => {
+            const border = detect_border(e, box);
+                
+        });
+        });
+    </script>
+</body>
+</html>

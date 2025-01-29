@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resizable Two Grids</title>
+    <style>
+        .resizable-grid {
+            width: 300px;
+            height: 200px;
+            position: relative;
+            border: 2px solid black;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 10px;
+            margin: 20px;
+        }
+        .resizable-grid div {
+            background: lightblue;
+            border: 1px solid #ccc;
+        }
+        /* Borders for resizing */
+        .border-top, .border-right, .border-bottom, .border-left {
+            position: absolute;
+            background: transparent;
+        }
+        .border-top, .border-bottom {
+            height: 10px;
+            left: 0;
+            right: 0;
+            cursor: ns-resize;
+        }
+        .border-top {
+            top: -5px;
+        }
+        .border-bottom {
+            bottom: -5px;
+        }
+        .border-left, .border-right {
+            width: 10px;
+            top: 0;
+            bottom: 0;
+            cursor: ew-resize;
+        }
+        .border-left {
+            left: -5px;
+        }
+        .border-right {
+            right: -5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="resizable-grid" id="grid1">
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div class="border-top"></div>
+        <div class="border-right"></div>
+        <div class="border-bottom"></div>
+        <div class="border-left"></div>
+    </div>
+
+    <div class="resizable-grid" id="grid2">
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div class="border-top"></div>
+        <div class="border-right"></div>
+        <div class="border-bottom"></div>
+        <div class="border-left"></div>
+    </div>
+
+    <script>
+        //
+        // Make the grid resizable
+        // The grid is made resizable by dragging the borders(elements with class border-top, border-right, border-bottom, border-left)
+        function makeResizable(grid) {
+            const borders = {
+                top: grid.querySelector('.border-top'),
+                right: grid.querySelector('.border-right'),
+                bottom: grid.querySelector('.border-bottom'),
+                left: grid.querySelector('.border-left'),
+            };
+            //
+            // 
+            let is_resizing = false;
+            let direction = '';
+            let startX, startY, start_width, start_height;
+            //
+            // When the mouse is pressed down on the border, the resizing starts
+            const on_mouse_down = (event, dir) => {
+                is_resizing = true;
+                direction = dir;
+                startX = event.clientX;
+                startY = event.clientY;
+                start_width = grid.offsetWidth;
+                start_height = grid.offsetHeight;
+                document.addEventListener('mousemove', on_mouse_move);
+                document.addEventListener('mouseup', on_mouse_up);
+            };
+            //
+            //when the mouse is moved, the grid is resized
+            //The resizing is done by changing the width and height of the grid 
+            // based on the direction of the resizing
+            const on_mouse_move = (event) => {
+                if (!is_resizing) return;
+                if (direction === 'right') {
+                    grid.style.width = start_width + (event.clientX - startX) + 'px';
+                } else if (direction === 'bottom') {
+                    grid.style.height = start_height + (event.clientY - startY) + 'px';
+                } else if (direction === 'left') {
+                    const delta = startX - event.clientX;
+                    grid.style.width = start_width + delta + 'px';
+                    grid.style.left = grid.offsetLeft - delta + 'px';
+                } else if (direction === 'top') {
+                    const delta = startY - event.clientY;
+                    grid.style.height = start_height + delta + 'px';
+                    grid.style.top = grid.offsetTop - delta + 'px';
+                }
+            };
+            //
+            //When the mouse is released, the resizing stops
+            const on_mouse_up = () => {
+                is_resizing = false;
+                direction = '';
+                document.removeEventListener('mousemove', on_mouse_move);
+                document.removeEventListener('mouseup', on_mouse_up);
+            };
+            //
+            //Add mousedown event listener to each border
+            borders.top.addEventListener('mousedown', (e) => on_mouse_down(e, 'top'));
+            borders.right.addEventListener('mousedown', (e) => on_mouse_down(e, 'right'));
+            borders.bottom.addEventListener('mousedown', (e) => on_mouse_down(e, 'bottom'));
+            borders.left.addEventListener('mousedown', (e) => on_mouse_down(e, 'left'));
+        }
+
+        // Apply resizable functionality to both grids
+        makeResizable(document.getElementById('grid1'));
+        makeResizable(document.getElementById('grid2'));
+    </script>
+</body>
+</html>

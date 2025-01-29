@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Border resize</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="resize.css"/>
+        <script type="module">
+            import { resizer } from './resize.js';
+
+            const box = document.getElementById('box1');
+
+            const my_resizer = new resizer(box);
+
+            window.onload = () => {
+                //
+                // 
+                my_resizer.initialize();
+            }
+        </script>
+    </head>
+    <body>
+        <div class="box" id="box1">
+            Panel
+        </div>
+    </body>
+</html>

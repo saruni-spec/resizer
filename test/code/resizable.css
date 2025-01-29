@@ -1,0 +1,15 @@
+.resizable-grid {
+  width: 300px;
+  height: 200px;
+  resize: both; /* Allow resizing in both directions */
+  overflow: auto; /* Ensure content doesn't spill out */
+  border: 1px solid black;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 10px;
+}
+.resizable-grid div {
+  background: lightblue;
+  border: 1px solid #ccc;
+}

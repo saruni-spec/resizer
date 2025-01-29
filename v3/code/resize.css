@@ -1,0 +1,11 @@
+.box {
+    width: 200px;
+    height: 200px;
+    background: lightseagreen;
+    /* 
+    Position the box away from the edges */
+    position: fixed;
+    top: 200px;
+    left: 200px;
+      
+}
