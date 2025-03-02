@@ -1,6 +1,6 @@
 import { view } from "../../../schema/v/code/schema.js";
 //
-// Adding resizable functionality to grids on a page
+// Adding resizable functionality to panels on a page
 export class resizer extends view {
     panels;
     //
@@ -14,18 +14,23 @@ export class resizer extends view {
         this.panels.set("class", new student_class(this));
         this.panels.set("stream", new stream(this));
         this.panels.set("year", new year(this));
+        this.panels.set("mid", new mid_panel(this));
     }
 }
 //
-/// A panel is a resizable grid on a page
+/// A panel is a section on a grid/page
 class panel extends view {
     //
     // Store regions in a Map for direct access by border type
     regions = new Map();
+    //
+    // The element representing the panel
     element;
     //
-    //
+    // The coordinates when resizing starts
     resize_start;
+    //
+    // The direction of resizing
     resize_direction;
     constructor(panel_id, parent, options) {
         super(parent, options);
@@ -38,8 +43,14 @@ class panel extends view {
         this.get_regions(parent.viewport[0], parent.viewport[1]);
         //
         // Add mouse move and mouse up listeners to the document
-        document.onmousemove = (e) => this.on_mouse_move(e);
-        document.onmouseup = (e) => this.on_mouse_up(e);
+        //
+        // Adding an evt listener directly to the document/element only allows addition of a single event
+        // document.onmousemove=(evt:MouseEvent)=>this.on_mouse_move(evt)
+        document.addEventListener("mousemove", (evt) => this.on_mouse_move(evt));
+        document.addEventListener("mouseup", (evt) => this.on_mouse_up(evt));
+        // adding the mouse move event to the element makes it less responsive to fast mouse move changes
+        // this.element.onmousemove=(evt:MouseEvent)=>this.on_mouse_move(evt);
+        // this.element.onmouseup=(evt:MouseEvent)=>this.on_mouse_up(evt);
     }
     //
     // Get the border regions of this panel
@@ -64,47 +75,69 @@ class panel extends view {
         if (rect.right < vw - threshold)
             this.regions.set("right", new right(this));
     }
+    //
+    // Get the dimensions of the panel frm the DOMrect
     get rect() {
         return this.element.getBoundingClientRect();
     }
+    //
+    // Get the dimensions of the panel from its css styling
+    get style() {
+        //
+        // Use the getCOmputedStyles to get the panels css properties
+        const panel_styles = window.getComputedStyle(this.element);
+        //
+        // Get and parse the top,left,width and heigh of the panel
+        const panel_dimensions = {
+            height: parseInt(panel_styles.height.split("p")[0]),
+            width: parseInt(panel_styles.width.split("p")[0]),
+            top: parseInt(panel_styles.top.split("p")[0]),
+            left: parseInt(panel_styles.left.split("p")[0]),
+        };
+        return panel_dimensions;
+    }
+    //
+    // When the mouse moves,resize the panel
     on_mouse_move(e) {
         //
-        // If resize hasn't started or no direction is set, exit
+        // If resize hasn't started or no direction is set, do not resize
         if (!this.resize_start || !this.resize_direction)
             return;
         //
         // Calculate the difference from the start position
         const change_x = e.clientX - this.resize_start[0];
         const change_y = e.clientY - this.resize_start[1];
-        // Get current dimensions
-        const rect = this.rect;
+        //
+        // Get current dimensions of the panel
+        const rect = this.style;
+        //
         // Handle resizing based on direction
         switch (this.resize_direction) {
-            //
-            // Resizing for the top border
             case "top":
                 //
                 // Calculate the new height for the panel
                 const new_height = rect.height - change_y;
                 //
-                // Calculate the new top position for the panel
-                const new_top = rect.top + change_y;
+                // Apply the new height and top position
                 //
-                // Apply the new top and height to the panel
-                this.element.style.top = `-${new_top}px`;
+                // Since the panel is positioned relative, we adjust its top position by the change in y
+                const new_top = rect.top + change_y;
+                this.element.style.top = `${new_top}px`;
                 this.element.style.height = `${new_height}px`;
                 break;
             //
-            // Resizing for the bottom border
+            //Resise the bottom border
             case "bottom":
+                //
+                // Increae the height of the panel.The position does not need to be changed
                 const bottom_height = rect.height + change_y;
                 this.element.style.height = `${bottom_height}px`;
                 break;
             case "left":
                 const new_width = rect.width - change_x;
-                const new_left = rect.left + change_x;
                 this.element.style.width = `${new_width}px`;
-                this.element.style.left = `-${new_left}px`;
+                const new_left = rect.left + change_x;
+                this.element.style.left = `${new_left}px`;
                 break;
             case "right":
                 const right_width = rect.width + change_x;
@@ -151,6 +184,11 @@ export class year extends panel {
         super("year", parent, options);
     }
 }
+export class mid_panel extends panel {
+    constructor(parent, options) {
+        super("mid", parent, options);
+    }
+}
 //
 //  The mouse down event should be handled in the region class because:
 //  Each region knows its own resize behavior (top/bottom vs left/right)
@@ -167,6 +205,7 @@ class region {
         //
         //Add repeating styles to the element
         this.element.style.position = "absolute";
+        //
         this.element.style.zIndex = "2";
         //
         // Add mouse down listener to the element
@@ -186,14 +225,6 @@ class region {
             this.panel.resize_direction = "left";
         else if (this instanceof right)
             this.panel.resize_direction = "right";
-        // Add mouse move and mouse up listeners to the document
-        document.addEventListener("mousemove", (e) => this.panel.on_mouse_move(e));
-        document.addEventListener("mouseup", (e) => {
-            this.panel.on_mouse_up(e);
-            // Remove the listeners when mouse is up
-            document.removeEventListener("mousemove", (e) => this.panel.on_mouse_move(e));
-            document.removeEventListener("mouseup", (e) => this.panel.on_mouse_up(e));
-        });
     }
 }
 //

@@ -1,175 +1,258 @@
 import { view } from "../../../schema/v/code/schema.js";
+//
+// Adding resizable functionality to grids on a page
 export class resizer extends view {
+    panels;
+    //
+    // Store the viewport dimensions
+    viewport = [window.innerWidth, window.innerHeight];
+    constructor(parent, options) {
+        super(parent, options);
+        this.panels = new Map();
+        this.panels.set("school", new school(this));
+        this.panels.set("student", new student(this));
+        this.panels.set("class", new student_class(this));
+        this.panels.set("stream", new stream(this));
+        this.panels.set("year", new year(this));
+    }
+}
+//
+/// A panel is a resizable grid on a page
+class panel extends view {
+    //
+    // Store regions in a Map for direct access by border type
+    regions = new Map();
+    element;
+    //
+    //
+    resize_start;
+    resize_direction;
+    constructor(panel_id, parent, options) {
+        super(parent, options);
+        this.element = this.get_element(panel_id);
+        //
+        // Added relative positioning for proper region placement
+        this.element.style.position = "relative";
+        //
+        // Add the border regions
+        this.get_regions(parent.viewport[0], parent.viewport[1]);
+        //
+        // Add mouse move and mouse up listeners to the document
+        document.onmousemove = (e) => this.on_mouse_move(e);
+        document.onmouseup = (e) => this.on_mouse_up(e);
+    }
+    //
+    // Get the border regions of this panel
+    get_regions(vw, vh) {
+        const threshold = region.threshold;
+        const rect = this.element.getBoundingClientRect();
+        //
+        // Only create borders that aren't at viewport edges
+        // Top border
+        if (rect.top > threshold)
+            this.regions.set("top", new top(this));
+        //
+        // Bottom border
+        if (rect.bottom < vh - threshold)
+            this.regions.set("bottom", new bottom(this));
+        //
+        // Left border
+        if (rect.left > threshold)
+            this.regions.set("left", new left(this));
+        //
+        // Right border
+        if (rect.right < vw - threshold)
+            this.regions.set("right", new right(this));
+    }
+    get rect() {
+        return this.element.getBoundingClientRect();
+    }
+    on_mouse_move(e) {
+        //
+        // If resize hasn't started or no direction is set, exit
+        if (!this.resize_start || !this.resize_direction)
+            return;
+        //
+        // Calculate the difference from the start position
+        const change_x = e.clientX - this.resize_start[0];
+        const change_y = e.clientY - this.resize_start[1];
+        // Get current dimensions
+        const rect = this.rect;
+        // Handle resizing based on direction
+        switch (this.resize_direction) {
+            //
+            // Resizing for the top border
+            case "top":
+                //
+                // Calculate the new height for the panel
+                const new_height = rect.height - change_y;
+                //
+                // Calculate the new top position for the panel
+                const new_top = rect.top + change_y;
+                //
+                // Apply the new top and height to the panel
+                this.element.style.top = `${new_top}px`;
+                this.element.style.height = `${new_height}px`;
+                break;
+            //
+            // Resizing for the bottom border
+            case "bottom":
+                const bottom_height = rect.height + change_y;
+                this.element.style.height = `${bottom_height}px`;
+                break;
+            case "left":
+                const new_width = rect.width - change_x;
+                const new_left = rect.left + change_x;
+                this.element.style.width = `${new_width}px`;
+                this.element.style.left = `${new_left}px`;
+                break;
+            case "right":
+                const right_width = rect.width + change_x;
+                this.element.style.width = `${right_width}px`;
+                break;
+        }
+        // Update the start position for the next move event
+        this.resize_start = [e.clientX, e.clientY];
+    }
+    //
+    on_mouse_up(e) {
+        //
+        // Reset the resize_start property
+        this.resize_start = undefined;
+        //
+        // Reset the resize direction
+        this.resize_direction = undefined;
+    }
+}
+//
+// Concrete panel implementations (remain unchanged)
+export class school extends panel {
+    constructor(parent, options) {
+        super("school", parent, options);
+    }
+}
+export class student extends panel {
+    constructor(parent, options) {
+        super("student", parent, options);
+    }
+}
+export class student_class extends panel {
+    constructor(parent, options) {
+        super("class", parent, options);
+    }
+}
+export class stream extends panel {
+    constructor(parent, options) {
+        super("stream", parent, options);
+    }
+}
+export class year extends panel {
+    constructor(parent, options) {
+        super("year", parent, options);
+    }
+}
+//
+//  The mouse down event should be handled in the region class because:
+//  Each region knows its own resize behavior (top/bottom vs left/right)
+//  The region contains the physical element being interacted with
+//  Regions manage their own interactions
+class region {
     panel;
-    //
-    // Stores the border coordinates of the element
-    sections;
-    //
-    // Minimum dimensions for the panel
-    static min_dimensions = 50;
-    //
-    // Threshold distance for detecting proximity to borders from mouse position
     static threshold = 20;
-    //
-    // Current border
-    border;
-    //
-    // Stores the current state of resizing operations
-    resize_state;
+    element;
     constructor(panel) {
-        super();
         this.panel = panel;
+        this.element = this.create_element();
+        this.panel.element.appendChild(this.element);
         //
-        // Calculate initial border coordinates and store them
-        this.sections = panel.getBoundingClientRect();
+        //Add repeating styles to the element
+        this.element.style.position = "absolute";
+        this.element.style.zIndex = "2";
         //
-        // Initialize resize state
-        this.resize_state = {
-            is_resizing: false,
-            current_panel: null,
-            current_border: null,
-            start_x: 0,
-            start_y: 0,
-            start_width: 0,
-            start_height: 0,
-        };
-        //
-        // Add the event listeners
-        this.add_event_listeners();
+        // Add mouse down listener to the element
+        this.element.onmousedown = (evt) => this.on_mouse_down(evt);
     }
     //
-    // Initialize event listeners for the element
-    add_event_listeners() {
-        const doc = this.document;
-        //
-        // Set up mouse movement tracking
-        doc.onmousemove = (evt) => this.on_mouse_move(evt);
-        //
-        // Set up resize initiation
-        doc.onmousedown = (evt) => this.on_mouse_down(evt, this.border, this.panel);
-        //
-        // Set up resize completion
-        doc.onmouseup = () => this.on_mouse_up();
+    // Mouse down event handler
+    on_mouse_down(e) {
+        e.preventDefault();
+        this.panel.resize_start = [e.clientX, e.clientY];
+        // Set the resize direction based on the region type
+        if (this instanceof top)
+            this.panel.resize_direction = "top";
+        else if (this instanceof bottom)
+            this.panel.resize_direction = "bottom";
+        else if (this instanceof left)
+            this.panel.resize_direction = "left";
+        else if (this instanceof right)
+            this.panel.resize_direction = "right";
+        // Add mouse move and mouse up listeners to the document
+        document.addEventListener("mousemove", (e) => this.panel.on_mouse_move(e));
+        document.addEventListener("mouseup", (e) => {
+            this.panel.on_mouse_up(e);
+            // Remove the listeners when mouse is up
+            document.removeEventListener("mousemove", (e) => this.panel.on_mouse_move(e));
+            document.removeEventListener("mouseup", (e) => this.panel.on_mouse_up(e));
+        });
     }
-    //
-    // Detect which border or corner the mouse is near
-    detect_border(evt) {
+}
+//
+// Top border region implementation
+class top extends region {
+    create_element() {
+        const el = document.createElement("div");
         //
-        // Get element's position and dimensions
-        const rect = this.panel.getBoundingClientRect();
+        // style application
+        el.style.top = "0";
+        el.style.left = "0";
+        el.style.right = "0";
+        el.style.height = `${region.threshold}px`;
+        el.style.backgroundColor = "gold";
         //
-        // Calculate distances from each border
-        const left = Math.abs(rect.left - evt.clientX);
-        const top = Math.abs(rect.top - evt.clientY);
-        const right = Math.abs(rect.right - evt.clientX);
-        const bottom = Math.abs(rect.bottom - evt.clientY);
-        const body = this.document.body;
-        //
-        // Check for corners first
-        if (left < resizer.threshold && top < resizer.threshold) {
-            body.style.cursor = "nwse-resize";
-            this.border = "top_left";
-            return "top_left";
-        }
-        if (right < resizer.threshold && top < resizer.threshold) {
-            body.style.cursor = "nesw-resize";
-            this.border = "top_right";
-            return "top_right";
-        }
-        if (left < resizer.threshold && bottom < resizer.threshold) {
-            body.style.cursor = "nesw-resize";
-            this.border = "bottom_left";
-            return "bottom_left";
-        }
-        if (right < resizer.threshold && bottom < resizer.threshold) {
-            body.style.cursor = "nwse-resize";
-            this.border = "bottom_right";
-            return "bottom_right";
-        }
-        //
-        // Check edges
-        if (top < resizer.threshold) {
-            body.style.cursor = "ns-resize";
-            this.border = "top";
-            return "top";
-        }
-        if (bottom < resizer.threshold) {
-            body.style.cursor = "ns-resize";
-            this.border = "bottom";
-            return "bottom";
-        }
-        if (left < resizer.threshold) {
-            body.style.cursor = "ew-resize";
-            this.border = "left";
-            return "left";
-        }
-        if (right < resizer.threshold) {
-            body.style.cursor = "ew-resize";
-            this.border = "right";
-            return "right";
-        }
-        this.border = undefined;
-        body.style.cursor = "default";
+        // Cursor style assignment
+        el.style.cursor = "ns-resize";
+        return el;
     }
-    //
-    // Handle mouse movement for border detection and resizing
-    on_mouse_move(evt) {
-        //
-        // Prevent default behavior whixh is to select text
-        evt.preventDefault();
-        //
-        //
-        this.detect_border(evt);
-        //
-        // Check if the panel is currently being resized
-        if (!this.resize_state.is_resizing) {
-            return;
-        }
-        this.handle_resize(evt, this.resize_state);
+}
+//
+// Bottom border region
+class bottom extends region {
+    create_element() {
+        const el = document.createElement("div");
+        el.style.bottom = "0";
+        el.style.left = "0";
+        el.style.right = "0";
+        el.style.height = `${region.threshold}px`;
+        el.style.backgroundColor = "silver";
+        el.style.cursor = "ns-resize";
+        return el;
     }
-    //
-    // Set up mouse down event for initiating resize
-    on_mouse_down(evt, border, panel) {
-        if (!border) {
-            return;
-        }
-        //
-        // Handle when the mouse is pressed down on the element
-        this.resize_state.is_resizing = true;
-        this.resize_state.current_panel = panel;
-        this.resize_state.current_border = border;
-        this.resize_state.start_x = evt.clientX;
-        this.resize_state.start_y = evt.clientY;
-        this.resize_state.start_width = panel.offsetWidth;
-        this.resize_state.start_height = panel.offsetHeight;
+}
+//
+// Left border region
+class left extends region {
+    create_element() {
+        const el = document.createElement("div");
+        el.style.left = "0";
+        el.style.top = "0";
+        el.style.bottom = "0";
+        el.style.width = `${region.threshold}px`;
+        el.style.backgroundColor = "gold";
+        el.style.cursor = "ew-resize";
+        return el;
     }
-    //
-    // Handle the actual resizing calculations
-    handle_resize(e, state) {
-        //
-        //
-        if (state.current_border?.includes("right")) {
-            const width = state.start_width + (e.clientX - state.start_x);
-            this.panel.style.width = `${Math.max(resizer.min_dimensions, width)}px`;
-        }
-        if (state.current_border?.includes("left")) {
-            const width = state.start_width - (e.clientX - state.start_x);
-            this.panel.style.width = `${Math.max(resizer.min_dimensions, width)}px`;
-        }
-        if (state.current_border?.includes("bottom")) {
-            const height = state.start_height + (e.clientY - state.start_y);
-            this.panel.style.height = `${Math.max(resizer.min_dimensions, height)}px`;
-        }
-        if (state.current_border?.includes("top")) {
-            const height = state.start_height - (e.clientY - state.start_y);
-            this.panel.style.height = `${Math.max(resizer.min_dimensions, height)}px`;
-        }
-    }
-    //
-    // Set up mouse up event for completing resize
-    on_mouse_up() {
-        this.resize_state.is_resizing = false;
-        this.resize_state.current_panel = null;
-        this.resize_state.current_border = null;
+}
+//
+// Right border region
+class right extends region {
+    create_element() {
+        const el = document.createElement("div");
+        el.style.right = "0";
+        el.style.top = "0";
+        el.style.bottom = "0";
+        el.style.width = `${region.threshold}px`;
+        el.style.backgroundColor = "silver";
+        el.style.cursor = "ew-resize";
+        return el;
     }
 }

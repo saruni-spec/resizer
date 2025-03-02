@@ -6,19 +6,31 @@ body,html{
 }
 body{
     display: grid;
-    grid-template-areas: 
-    "school class";
-    grid-template-columns: 50% 50%;
-    grid-template-rows: 100%;
+    grid-column: 3;
     
 }
 #school{
-    grid-area: school;
+ 
     background-color: red;
    
 }
+#stream{
+ 
+    background-color: orange;
+
+}
 #class{
-    grid-area: class;
+  
     background-color: green;
     
+}
+#year{
+ 
+    background-color: blue;
+  
+}
+#student{
+  
+    background-color: brown;
+
 }

@@ -16,40 +16,47 @@ export class resizer extends view {
     this.panels.set("class", new student_class(this));
     this.panels.set("stream", new stream(this));
     this.panels.set("year", new year(this));
-    this.panels.set("mid", new mid_panel(this));
     //
     // Add all edges to the all_edges map
     this.create_clusters();
   }
   //
-  // Each edge has a rect property to get its dimensions
-  // We can use this to find the edges that share a border(each edge has at least 1 neighbor)
-  // A top edge can only have a bottom edge as a neighbor,a left edge can only have a right edge as a neighbor
-  // We can use this to find the edges that share a border
-  // Well pick an edge,find its neighbors and add them to a set and remove them from the all_edges array
-  // well the pick its neigbors and find their neighbors and add them to the set and remove them from the all_edges array until all edges are in a cluster
-  // We can do this by recursively calling a function that finds the neighbors of an edge
-  //
   // Put all the edges in a cluster
   create_clusters(): Map<string, Set<edge>> {
+    //
+    // create an array to store all the edges
     const all_edges: edge[] = [];
+    //
+    // Get all the edges and add then to the all_edges array
     this.panels.forEach((panel) => {
       panel.edges.forEach((edge) => {
         all_edges.push(edge);
       });
     });
-
+    //
+    // Create a map to store the clusters
     const clusters = new Map<string, Set<edge>>();
     let clusterCount = 0;
-
+    //
+    // Continue searching for clusters until all edges are assigned to a cluster
     while (all_edges.length > 0) {
+      //
+      // Get the first edge in the all_edges array
       const currentEdge = all_edges[0];
+      //
+      // Create a new cluster and add the current edge to it
       const cluster = new Set<edge>();
+      //
+      // Find neighbors of the current edge
       this.get_neighbors(currentEdge, cluster, all_edges);
+      //
+      // Add the cluster to the clusters map
       clusters.set(`cluster-${clusterCount}`, cluster);
+
       clusterCount++;
     }
-
+    //
+    // Assign clusters to each edge
     clusters.forEach((cluster, clusterName) => {
       cluster.forEach((edge) => {
         edge.cluster = cluster;
@@ -64,32 +71,64 @@ export class resizer extends view {
     cluster: Set<edge>,
     all_edges: edge[]
   ): void {
+    // We are using a depth-first search to find the neighbors of the current edge
+    // Tis means we will continue to search the neighbors of the neighbors until we have found all the edges in the cluster
+    // We will use a stack to store the edges we are checking
+    // We will continue until the stack is empty
+    //
+    // Create a stack to store the edges to be that we are checking
     const stack: edge[] = [edge];
+    //
+    // Continue until the stack is empty
     while (stack.length > 0) {
+      //
+      // Get the current edge from the stack
       const current = stack.pop()!;
-      // Skip if already processed
+      //
+      // Skip if the edge is already in the cluster
       if (cluster.has(current)) continue;
-      // Add to cluster and remove from all_edges
+      //
+      // Add the current edge to the cluster
       cluster.add(current);
+      //
+      // Find the index of the current edge in the all_edges array
       const index = all_edges.indexOf(current);
+      //
+      // Remove the edge from the all_edges array
       if (index !== -1) all_edges.splice(index, 1);
-      // Find neighbors and push to stack
-      const neighbors = this.get_neighbor(current, all_edges);
+      //
+      // Find its neighbors and push to stack
+      const neighbors = this.immediate_neighbors(current, all_edges);
+      //
+      // Loop through the neighbors
       neighbors.forEach((neighbor) => {
+        //
+        // If the neighbor is not already in the cluster, add it to the stack
         if (!cluster.has(neighbor)) {
+          //
+          // Add the neighbor to the stack
           stack.push(neighbor);
         }
       });
     }
   }
-
-  private get_neighbor(edge: edge, all_edges: edge[]): Set<edge> {
+  //
+  // Get the neighbors of an edge
+  private immediate_neighbors(edge: edge, all_edges: edge[]): Set<edge> {
+    //
+    // Create a set to store the neighbors
     const neighbors = new Set<edge>();
+    //
+    // Get the type of the edge (vertical or horizontal)
     const type = edge.alignment;
+    //
     // Filter edges of the same type (vertical/horizontal)
     const sameTypeEdges = all_edges.filter((e) => e.alignment === type);
+    //
     // Check each edge for shared border
     sameTypeEdges.forEach((otherEdge) => {
+      //
+      // If the edges share a border, add the other edge to the neighbors set
       if (this.share_border(edge.rect, otherEdge.rect, type)) {
         neighbors.add(otherEdge);
       }
@@ -107,19 +146,34 @@ export class resizer extends view {
       return false;
     }
     //
-    // Check if the edges share a border by checking if they overlap
-    // If the edges are vertical, we check if the left or right edge of one edge is within the other edge
-    // If the edges are horizontal, we check if the top or bottom edge of one edge is within the other edge
+    // For vertical edges (left/right borders)
     if (alignment === "vertical") {
-      return (
-        (rect1.left >= rect2.left && rect1.left <= rect2.right) ||
-        (rect1.right >= rect2.left && rect1.right <= rect2.right)
-      );
-    } else {
-      return (
-        (rect1.top >= rect2.top && rect1.top <= rect2.bottom) ||
-        (rect1.bottom >= rect2.top && rect1.bottom <= rect2.bottom)
-      );
+      //
+      // Check if one edge's right equals or is very close to the other's left (or vice versa)
+      const touching =
+        Math.abs(rect1.right - rect2.left) < 2 ||
+        Math.abs(rect2.right - rect1.left) < 2;
+      //
+      // Check if they overlap vertically
+      const verticalOverlap =
+        Math.max(rect1.top, rect2.top) < Math.min(rect1.bottom, rect2.bottom);
+
+      return touching && verticalOverlap;
+    }
+    //
+    // For horizontal edges (top/bottom borders)
+    else {
+      //
+      // Check if one edge's bottom equals or is very close to the other's top (or vice versa)
+      const touching =
+        Math.abs(rect1.bottom - rect2.top) < 2 ||
+        Math.abs(rect2.bottom - rect1.top) < 2;
+      //
+      // Check if they overlap horizontally
+      const horizontalOverlap =
+        Math.max(rect1.left, rect2.left) < Math.min(rect1.right, rect2.right);
+
+      return touching && horizontalOverlap;
     }
   }
 }
@@ -227,11 +281,6 @@ export class year extends panel {
     super("year", parent, options);
   }
 }
-export class mid_panel extends panel {
-  constructor(parent: resizer, options?: options) {
-    super("mid", parent, options);
-  }
-}
 
 //
 //  The mouse down event should be handled in the region class because:
@@ -283,6 +332,11 @@ abstract class edge {
     const change_x = e.clientX - this.resize_start[0];
     const change_y = e.clientY - this.resize_start[1];
     //
+    // Get current dimensions of the panel
+    // const rect = this.panel.style;
+    // //
+    // // Handle resizing based on edge type (implemented by subclasses)
+    // this.resize(rect, change_x, change_y);
     // Resize all edges in the cluster
     if (this.cluster) {
       this.cluster.forEach((edge) => {
@@ -292,6 +346,9 @@ abstract class edge {
     //
     // Update the start position for the next move event
     this.resize_start = [e.clientX, e.clientY];
+    //
+    // Create new clusters
+    (this.panel.parent as resizer).create_clusters();
   }
   //
   // Mouse up event handler

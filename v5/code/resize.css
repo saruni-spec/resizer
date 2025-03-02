@@ -1,7 +1,40 @@
-div {
-    width: 200px;
-    height: 200px;
-    background: #3498db;
- 
+body,html{
+    margin:0;
+    padding:0;
+    height:100%;
+    width:100%;
+}
+body{
+    display: grid;
+    grid-template-areas: 
+    "school stream student"
+    "class   year  student";
+    grid-template-rows: 60% 40%;
+    grid-template-columns: 30% 30% 40%;
+    
+}
+#school{
+    grid-area: school;
+    background-color: red;
+   
+}
+#stream{
+    grid-area: stream;
+    background-color: orange;
+
+}
+#class{
+    grid-area: class;
+    background-color: green;
+    
+}
+#year{
+    grid-area: year;
+    background-color: blue;
   
+}
+#student{
+    grid-area: student;
+    background-color: brown;
+
 }

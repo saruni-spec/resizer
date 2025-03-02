@@ -1,122 +1,193 @@
-//
-// Making HTML elements resizable through border dragging
-// This allows for dynamic resizing of div elements by dragging their borders
-// while maintaining size constraints and handling parent container boundaries
-//
 import { view } from "../../../schema/v/code/schema.js";
+//
+// Adding resizable funtinality to grids on a page
 export class resizer extends view {
     //
-    // List of elements managed by the Resizer class (HTMLElement[])
-    // Currently, only one element
-    box;
+    //A resizer has mulitple panels
+    panels;
     //
-    // Stores the border coordinates of each element
-    // If multiple elements are managed, this should be an array(section[])
-    sections;
     //
-    // Threshold distance for detecting proximity to borders from mouse position
-    static threshold = 20;
-    constructor(element) {
-        super();
+    constructor(parent, options) {
+        super(parent, options);
         //
-        // Assign elements to the box property
-        this.box = element;
+        // Add the panels
+        this.panels = new Map();
+        this.panels.set("school", new school(this));
+        this.panels.set("student", new student(this));
+        this.panels.set("class", new student_class(this));
+        this.panels.set("stream", new stream(this));
+        this.panels.set("year", new year(this));
+    }
+}
+/// A panel is a resizable grid on a page
+class panel extends view {
+    //
+    // Store regions in a Map for direct access by border type
+    // Key: border type as string ('top' | 'bottom' | 'left' | 'right')
+    // Value: The region instance
+    regions = new Map();
+    //
+    // The actual HTML element this panel represents
+    element;
+    constructor(panel_id, parent, options) {
+        super(parent, options);
+        this.element = this.create(panel_id);
         //
-        // Calculate initial border coordinates and store them in sections
-        this.sections = element.getBoundingClientRect();
+        // Get viewport size  (width and height)
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        //
+        // Add the border regions
+        this.get_regions(vw, vh);
+        //
+        // Add mousemove event listener to detect border regions
+        this.element.addEventListener("mousemove", (evt) => this.detect_border(evt));
     }
     //
-    // Detect which border or corner the mouse is near
-    detect_border(e, element) {
-        //
-        // Get element's position and dimensions
-        const rect = this.sections;
-        //
-        // Calculate mouse position relative to element
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const border_threshold = resizer.threshold;
-        //
-        // Check for corners
-        if (x < border_threshold && y < border_threshold) {
-            element.style.cursor = "nwse-resize";
-            return "top-left corner";
-        }
-        if (x > rect.width - border_threshold &&
-            x < rect.width + border_threshold &&
-            y < border_threshold) {
-            element.style.cursor = "nesw-resize";
-            return "top-right corner";
-        }
-        if (x < border_threshold &&
-            y > rect.height - border_threshold &&
-            y < rect.height + border_threshold) {
-            element.style.cursor = "nesw-resize";
-            return "bottom-left corner";
-        }
-        if (x > rect.width - border_threshold &&
-            x < rect.width + border_threshold &&
-            y > rect.height - border_threshold &&
-            y < rect.height + border_threshold) {
-            element.style.cursor = "nwse-resize";
-            return "bottom-right corner";
-        }
-        //
-        // Check for edges
-        if (Math.abs(y) < border_threshold) {
-            element.style.cursor = "row-resize";
-            return "top";
-        }
-        if (y > rect.height - border_threshold &&
-            y < rect.height + border_threshold) {
-            element.style.cursor = "row-resize";
-            return "bottom";
-        }
-        if (Math.abs(x) < border_threshold) {
-            element.style.cursor = "col-resize";
-            return "left";
-        }
-        if (x > rect.width - border_threshold &&
-            x < rect.width + border_threshold) {
-            element.style.cursor = "col-resize";
-            return "right";
-        }
-        //
-        // Reset cursor and return null if no border is detected
-        element.style.cursor = "default";
-        return null;
+    // Create or get the panel element
+    create(id) {
+        const element = this.get_element(id);
+        return element;
     }
     //
-    // Initialize event listeners for the elements
-    initialize() {
+    // Get the border regions of this panel
+    get_regions(vw, vh) {
+        const threshold = region.threshold;
         //
-        // Handle mouse movement over the element
-        this.on_mouse_move(this.box);
+        const rect = this.element.getBoundingClientRect();
+        // Add regions to the panel
         //
-        // Handle when the mouse is pressed down on the element
+        // Only create borders that aren't at viewport edges
+        // Top border
+        if (rect.top > threshold)
+            this.regions.set("top", new top(this));
         //
+        // Bottom border
+        if (rect.bottom < vh - threshold)
+            this.regions.set("bottom", new bottom(this));
+        //
+        // Left border
+        if (rect.left > threshold)
+            this.regions.set("left", new left(this));
+        //
+        // Right border
+        if (rect.right < vw - threshold)
+            this.regions.set("right", new right(this));
     }
-    on_mouse_move(element) {
-        //
-        //Attach the mouse move event to the body
-        //
-        // Handle mouse movement over the element
-        document.addEventListener("mousemove", (e) => {
-            this.detect_border(e, element);
-        });
+    //
+    // The panel's current position and size
+    get rect() {
+        return this.element.getBoundingClientRect();
     }
-    on_mouse_down(element) {
+    //
+    // Detect which region contains the mouse
+    detect_border(evt) {
+        let cursor = "auto";
         //
-        // Handle mouse leaving the element
-        element.addEventListener("mouseleave", () => {
+        // Iterate through Map values to check each region
+        for (const region of this.regions.values()) {
             //
-            // Reset all border indicators and background
-            element
-                .querySelectorAll(".border-indicator")
-                .forEach((border) => {
-                border.style.opacity = "0";
-            });
-            element.style.background = "#3498db";
-        });
+            // If cursor is within region, get the cursor style
+            if (region.current(evt)) {
+                cursor = region.cursor;
+                break;
+            }
+        }
+        //
+        // Set the panles cusor style
+        this.element.style.cursor = cursor;
+    }
+}
+//
+// Panel for a school management page
+export class school extends panel {
+    constructor(parent, options) {
+        super("school", parent, options);
+    }
+}
+export class student extends panel {
+    constructor(parent, options) {
+        super("student", parent, options);
+    }
+}
+export class student_class extends panel {
+    constructor(parent, options) {
+        super("class", parent, options);
+    }
+}
+export class stream extends panel {
+    constructor(parent, options) {
+        super("stream", parent, options);
+    }
+}
+export class year extends panel {
+    constructor(parent, options) {
+        super("year", parent, options);
+    }
+}
+//
+// Base class for all border regions
+class region {
+    panel;
+    //
+    // How many pixels from edge for a border region
+    static threshold = 20;
+    //
+    // Each region knows its parent panel
+    constructor(panel) {
+        this.panel = panel;
+    }
+}
+//
+// Top border region implementation
+class top extends region {
+    cursor = "ns-resize";
+    //
+    // Checks if cursor is within top threshold
+    current(evt) {
+        //
+        // Panel's current position
+        const rect = this.panel.rect;
+        //
+        // Distance from top edge to cursor
+        return evt.clientY - rect.top <= region.threshold;
+    }
+}
+//
+// Bottom border region
+class bottom extends region {
+    cursor = "ns-resize";
+    //
+    // Checks if cursor is within bottom threshold
+    current(evt) {
+        const rect = this.panel.rect;
+        //
+        // Distance from cursor to bottom
+        return rect.bottom - evt.clientY <= region.threshold;
+    }
+}
+//implementation
+class left extends region {
+    cursor = "ew-resize";
+    //
+    // Checks if cursor is within left threshold
+    current(evt) {
+        const rect = this.panel.rect;
+        //
+        // Distance from left edge to cursor
+        return evt.clientX - rect.left <= region.threshold;
+    }
+}
+//
+// Right border region implementation
+class right extends region {
+    cursor = "ew-resize";
+    //
+    // Checks if cursor is within right threshold
+    current(evt) {
+        const rect = this.panel.rect;
+        //
+        // Distance from cursor to right edge
+        return rect.right - evt.clientX <= region.threshold;
     }
 }
