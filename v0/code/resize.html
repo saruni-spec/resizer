@@ -10,19 +10,27 @@
         //
         //
         window.onload = () => {
+            const container=document.querySelector(".container");
             //
             //Create an instance of the resizer class
-            new resizer();
+            new resizer(container,{
+                min_panel_size:30,
+                threshold:5,
+                closeness:20,
+                border_color:'red'
+            });
 
         }
        
     </script>
 </head>
 <body>
-    <div id="school">school</div>
-    <div id="class">class</div>
-    <div id="student">student</div>
-    <div id="stream">stream</div>
-    <div id="year">year</div>
+    <div class="container">
+        <div id="school">schoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschoolschool</div>
+        <div id="class">class</div>
+        <div id="student">student</div>
+        <div id="stream">stream</div>
+        <div id="year">year</div>
+    </div>
 </body>
 </html>

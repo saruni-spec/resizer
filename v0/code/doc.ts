@@ -1,43 +1,73 @@
 import { view, view_options } from "../../../schema/v/code/schema.js";
-//
-// Adding resizable functionality to panels on a page
+
+/**
+ * @author Moses Saruni <sarunimaina@gmail.com>
+ * @copyright 2025 Mutall
+ * @version 1.0.0 g
+ * @since 1.0
+ *
+ * Adding resizable functionality to panels on a page.
+ * This class manages the resizing behavior of a set of HTML elements (panels) within a container.
+ */
 export class resizer extends view {
-  //
-  // the panels/sections on the grid
+  /**
+   * @var Map<string, panel> The panels/sections on the grid.
+   * Each panel is identified by its HTML element ID.
+   */
   public panels: Map<string, panel>;
-  //
-  //
-  // The clusters of edges
+
+  /**
+   * @var Map<string, Set<edge>> The clusters of edges.
+   * Edges that should be resized together are grouped into clusters.
+   */
   public clusters: Map<string, Set<edge>> = new Map();
-  //
-  // The viewport/container dimensions
-  // To be used in edge positioning
+
+  /**
+   * @var number|undefined The viewport/container width.
+   * Used in edge positioning.
+   */
   public client_width?: number;
+
+  /**
+   * @var number|undefined The viewport/container height.
+   * Used in edge positioning.
+   */
   public client_height?: number;
+
+  /**
+   * @var number|undefined The viewport/container left offset.
+   * Used in edge positioning.
+   */
   public client_left?: number;
+
+  /**
+   * @var number|undefined The viewport/container top offset.
+   * Used in edge positioning.
+   */
   public client_top?: number;
-  //
-  // Get the dimensions of the resize container
+
+  /**
+   * @returns DOMRect The dimensions of the resize container.
+   */
   get rect(): DOMRect {
     return this.container.getBoundingClientRect();
   }
 
+  /**
+   * Constructor for the resizer class.
+   *
+   * @param container The container for the panels. Defaults to the document body.
+   * @param parent Optional parent view.
+   * @param options Optional view options.
+   */
   constructor(
     //
     // The container for the panels
     public container: HTMLElement = document.body,
     //
-    // options for the resizer
-    // This will be used to set min_panel_size,threshold,closeness,border_color
-    public resizer_options?: {
-      min_panel_size?: number;
-      threshold?: number;
-      border_color?: string;
-    },
-    //
     // View options
-    parent?: view,
-    options?: view_options
+    parent?: view | undefined,
+    options?: view_options | undefined
   ) {
     super(parent, options);
     this.panels = new Map();
@@ -54,8 +84,11 @@ export class resizer extends view {
     //
     this.add_reset_button();
   }
-  //
-  // Set container dimensions
+
+  /**
+   * Set the dimensions of the container.
+   * Updates the `client_left`, `client_top`, `client_width`, and `client_height` properties based on the container element.
+   */
   set_container_dimensions() {
     this.client_left = this.container.clientLeft;
     this.client_top = this.container.clientTop;
@@ -68,8 +101,12 @@ export class resizer extends view {
       this.client_height = window.innerHeight;
     }
   }
-  //
-  // Create the panels
+
+  /**
+   * Create the panel instances from the container's children.
+   * Iterates through the children of the container, creates a `panel` instance for each,
+   * and stores them in the `panels` map.
+   */
   create_panels() {
     // Get the grid elements on the page
     const panels = Array.from(this.container.children);
@@ -90,7 +127,12 @@ export class resizer extends view {
     });
   }
 
-  // Put all the edges in a cluster
+  /**
+   * Put all the edges in a cluster.
+   * This method identifies groups of connected edges that should be resized together.
+   *
+   * @returns Map<string, Set<edge>> A map where keys are cluster names and values are sets of edges in that cluster.
+   */
   create_clusters(): Map<string, Set<edge>> {
     // Create an array to store all the edges
     const all_edges: edge[] = [];
@@ -134,15 +176,21 @@ export class resizer extends view {
     this.clusters = clusters;
     return clusters;
   }
-  //
-  // Reset the grid to its initial layour
+
+  /**
+   * Reset the grid to its initial layout.
+   * Clears the saved dimensions for all panels from local storage.
+   */
   clear_saved_panels() {
     this.panels.forEach((panel) => {
       panel.clear_saved_dimensions();
     });
   }
-  //
-  // A button to reset the layout to its iniatila layout and clear saved dimensions
+
+  /**
+   * Add a button to the page to reset the layout.
+   * This button clears the saved panel dimensions and reloads the page.
+   */
   add_reset_button(): void {
     const btn = document.createElement("button");
     //
@@ -204,53 +252,64 @@ export class resizer extends view {
     document.body.appendChild(btn);
   }
 }
-//
-// Represents on of the grid sections on a page
-class panel {
-  //
-  // The key for storing a panels dimensions in local storage
+
+/**
+ * Represents one of the grid sections on a page.
+ * Each panel has edges that can be dragged to resize it.
+ */
+export class panel extends view {
+  /**
+   * @var string The key for storing a panel's dimensions in local storage.
+   */
   public saved_dimensions: string;
-  //
-  // The edges of a panel,ie its border regions
+
+  /**
+   * @var Map<string, edge> The edges of a panel, i.e., its border regions.
+   * Each edge is identified by its position (top, bottom, left, right).
+   */
   public edges: Map<string, edge> = new Map();
 
-  //
-  // the edge currently being resized
+  /**
+   * @var number The minimum size of a panel in pixels.
+   */
+  public min_panel_size = 40;
+
+  /**
+   * @var edge|undefined The edge currently being resized.
+   */
   public resizing_edge?: edge;
-  //
-  //The saved dimensions of the panel
+
+  /**
+   * @var object The saved dimensions of the panel.
+   * Includes top, left, height, and width.
+   */
   public dimensions: {
     top: number;
     left: number;
     height: number;
     width: number;
   };
-  //
-  // Check if the panel can be resized
+
+  /**
+   * @returns boolean Whether the panel cannot be resized further due to reaching its minimum size.
+   */
   get cant_resize(): boolean {
     return this.dimensions.width === this.min_panel_size;
   }
 
+  /**
+   * Constructor for the panel class.
+   *
+   * @param element The HTML element representing the panel.
+   * @param parent The parent `resizer` instance.
+   * @param options Optional view options.
+   */
   constructor(
     public element: HTMLElement,
-    public parent: resizer,
-    //
-    // The threshold for edge detection
-    // How close we need to be to an edge to detect it
-    public threshold = parent.resizer_options?.threshold || 10,
-    //
-    // Color of the panel's borders
-    public min_panel_size = parent.resizer_options?.min_panel_size || 40,
-    //
-    // how close edges need to be to be considered neighbors
-    // shoukld be smaller than the min panel size to prevent borders in the same panel being neighbors
-    // Maybe should prevent borders from being neighbors if they are in the same panel directly in the neigghbor detection
-    public border_closeness = min_panel_size - 10,
-    //
-    // The minimum size of a panel
-    public border_color = parent.resizer_options?.border_color ||
-      "rgba(0, 120, 215, 0.5)"
+    parent: resizer,
+    options?: view_options
   ) {
+    super(parent, options);
     //
     // save the key for this panels dimesnions in local srtorage
     this.saved_dimensions = `saved dimensions key for ${this.element.id}`;
@@ -261,9 +320,6 @@ class panel {
     // Set a minimum size for the panel
     this.element.style.minWidth = `${this.min_panel_size}px`;
     this.element.style.minHeight = `${this.min_panel_size}px`;
-    //
-    // set the box sizing to border box
-    this.element.style.boxSizing = "border-box";
     //
     // Set the current dimensions of the panel
     // Check for any saved dimensions,if not,get the current default ones
@@ -283,8 +339,10 @@ class panel {
     // To adjust edge positions when we scroll
     this.element.addEventListener("scroll", () => this.panel_scroll());
   }
-  //
-  // Adjust edge positions when we scroll on the panel
+
+  /**
+   * Adjust edge positions when scrolling within the panel.
+   */
   panel_scroll() {
     //
     //
@@ -296,13 +354,15 @@ class panel {
       edge.adjust_on_scroll(scroll_left, scroll_top)
     );
   }
-  //
-  // Get the border regions of this panel with improved positioning
-  // Modify the #get_regions method in the panel class
+
+  /**
+   * Get the border regions of this panel with improved positioning.
+   * Determines which edges of the panel should be resizable based on its position within the container and scrollbars.
+   */
   #get_regions(): void {
     //
     //
-    const threshold = this.threshold;
+    const threshold = edge.threshold;
     //
     // Get the panels dimensions to later compare them to the container
     const rect = this.element.getBoundingClientRect();
@@ -374,8 +434,12 @@ class panel {
     if (edge_options.left) this.edges.set("left", new left(this));
     if (edge_options.right) this.edges.set("right", new right(this));
   }
-  //
-  // check for saved dimensions
+
+  /**
+   * Check for saved dimensions in local storage and apply them.
+   *
+   * @returns { top: number; left: number; height: number; width: number; } | undefined The saved dimensions if found, otherwise undefined.
+   */
   check_saved_dimensions() {
     //
     // Checked for saved dimensions in local storage
@@ -408,57 +472,112 @@ class panel {
       return this_panel;
     }
   }
-  //
-  // Clear the saved dimensions from local storage
+
+  /**
+   * Clear the saved dimensions for this panel from local storage.
+   */
   clear_saved_dimensions() {
     localStorage.removeItem(this.saved_dimensions);
   }
-  //
-  // Change the dimensions of the panel using its css properties
+
+  /**
+   * Set the width of the panel.
+   *
+   * @param width The new width in pixels.
+   */
   set width(width: number) {
     this.element.style.width = `${width}px`;
   }
 
+  /**
+   * Set the height of the panel.
+   *
+   * @param height The new height in pixels.
+   */
   set height(height: number) {
     this.element.style.height = `${height}px`;
   }
 
+  /**
+   * Set the top position of the panel.
+   *
+   * @param top The new top position in pixels.
+   */
   set top(top: number) {
     this.element.style.top = `${top}px`;
   }
 
+  /**
+   * Set the left position of the panel.
+   *
+   * @param left The new left position in pixels.
+   */
   set left(left: number) {
     this.element.style.left = `${left}px`;
   }
 }
-//
-// Represents a border of a panel
-abstract class edge {
-  //
-  // The element representing the edge
+
+/**
+ * Represents a border of a panel that allows resizing.
+ * This is an abstract class that provides common functionality for all edge types.
+ */
+export abstract class edge {
+  /**
+   * @var number The threshold for edge detection in pixels.
+   * How close the mouse needs to be to an edge to detect it for resizing.
+   */
+  static threshold = 5;
+
+  /**
+   * @var number How close edges need to be to be considered neighbors in pixels.
+   */
+  public closeness = 30;
+
+  /**
+   * @var HTMLElement The element representing the visual edge in the DOM.
+   */
   public element: HTMLElement;
-  //
-  // The starting position of a resize operation
+
+  /**
+   * @var Array<number> | undefined The starting mouse position of a resize operation [clientX, clientY].
+   */
   protected resize_start?: Array<number>;
-  //
-  // The alignment of the edge (vertical or horizontal)
+
+  /**
+   * @var "vertical" | "horizontal" The alignment of the edge.
+   */
   public alignment: "vertical" | "horizontal" = "vertical";
-  //
-  // The cluster this edge belongs to
+
+  /**
+   * @var Set<edge> | undefined The cluster this edge belongs to.
+   * Edges in the same cluster are resized together.
+   */
   public cluster?: Set<edge>;
-  //
-  // The initial scroll position of the panel
-  // To adjust edge position for scroll
+
+  /**
+   * @var Array<number> The initial scroll position of the panel [scrollLeft, scrollTop].
+   * Used to adjust edge position during scrolling.
+   */
   protected initial_scroll: Array<number> = [0, 0];
-  //
-  // Get the dimensions of the edge
+
+  /**
+   * @returns DOMRect The dimensions of the edge element.
+   */
   get rect(): DOMRect {
     return this.element.getBoundingClientRect();
   }
-  //
-  // Get the opposite edge of the current edge
+
+  /**
+   * @returns edge | undefined The edge opposite to the current edge.
+   * This is an abstract getter that must be implemented by subclasses.
+   */
   abstract get opposite_edge(): edge | undefined;
 
+  /**
+   * Constructor for the edge class.
+   *
+   * @param panel The `panel` instance this edge belongs to.
+   */
   constructor(public panel: panel) {
     //
     // Create an edge
@@ -490,18 +609,33 @@ abstract class edge {
     //
     this.element.addEventListener("mouseleave", () => this.#on_mouse_leave());
   }
-  //
-  // Adjust edge position for scroll
+
+  /**
+   * Adjust the edge's position based on the panel's scroll.
+   *
+   * @param scroll_left The horizontal scroll amount.
+   * @param scroll_top The vertical scroll amount.
+   */
   adjust_on_scroll(scroll_left: number, scroll_top: number): void {
     //
-    //adjust for horizontal scroll
-    this.element.style.transform = `translateX(${scroll_left}px)`;
-    //
-    // adjust for vertical scroll
-    this.element.style.transform = `translateY(${scroll_top}px)`;
+    // Different handling based on edge type
+    if (this instanceof vertical_edge) {
+      //
+      // For vertical edges (left/right), adjust for horizontal scroll
+      this.element.style.transform = `translateX(${scroll_left}px)`;
+    } else if (this instanceof horizontal_edge) {
+      //
+      // For horizontal edges (top/bottom), adjust for vertical scroll
+      this.element.style.transform = `translateY(${scroll_top}px)`;
+    }
   }
 
-  // Mouse down handler with proper scroll tracking
+  /**
+   * Handles the mouse down event on the edge.
+   * Stores the initial mouse position and scroll position.
+   *
+   * @param e The MouseEvent object.
+   */
   #on_mouse_down(e: MouseEvent): void {
     //
     // PRevent the default behavior
@@ -522,7 +656,12 @@ abstract class edge {
     ];
   }
 
-  // Mouse move handler with scroll compensation
+  /**
+   * Handles the mouse move event on the document.
+   * Resizes the associated panel and other edges in the same cluster.
+   *
+   * @param e The MouseEvent object.
+   */
   #on_mouse_move(e: MouseEvent): void {
     //
     // If resize hasn't started, do not resize
@@ -570,8 +709,11 @@ abstract class edge {
     // Update the start position for the next move event
     this.resize_start = [e.clientX, e.clientY];
   }
-  //
-  // Mouse up event handler
+
+  /**
+   * Handles the mouse up event on the document.
+   * Resets the `resize_start` property and triggers cluster recreation and dimension saving.
+   */
   #on_mouse_up(): void {
     if (!this.resize_start) return;
     //
@@ -586,15 +728,10 @@ abstract class edge {
       edge.save_dimensions_to_storage();
     });
   }
-  ///
-  // Save the new dimensions after resize
-  // Doing this to avoid calling computed style too frequenlty
-  // Each edge should save the dimesions it changes
 
-  //
-  // Save the panels current dimensions to local storage
-  // new_left,new_width,new_height,new_top
-  // Then, update the save_new_dimensions method in the edge class
+  /**
+   * Save the new dimensions of the panel to local storage.
+   */
   save_dimensions_to_storage() {
     const saved = localStorage.getItem(this.panel.saved_dimensions);
     let saved_obj: Record<
@@ -624,27 +761,35 @@ abstract class edge {
       JSON.stringify(saved_obj)
     );
   }
-  //
-  // Visual feedback when hovering over edges
+
+  /**
+   * Provides visual feedback when the mouse enters the edge area.
+   */
   #on_mouse_enter() {
-    //
     if (!this.cluster) return;
-    //
     this.cluster.forEach((edge) => {
-      edge.element.style.backgroundColor = this.panel.border_color;
+      edge.element.style.backgroundColor = "rgba(0, 120, 215, 0.5)";
       edge.element.style.transition = "background-color 0.2s ease";
     });
   }
-  //
-  // Remove visual feedback when leaving the edge
+
+  /**
+   * Removes visual feedback when the mouse leaves the edge area.
+   */
   #on_mouse_leave() {
     if (!this.cluster) return;
     this.cluster.forEach((edge) => {
       edge.element.style.backgroundColor = "transparent";
     });
   }
-  //
-  // Find all connected edges (cluster detection)
+
+  /**
+   * Find all connected edges to form a cluster.
+   * This method recursively finds all edges that share a border with the current edge.
+   *
+   * @param cluster The set to store the connected edges.
+   * @param all_edges An array containing all available edges.
+   */
   get_neigbors(cluster: Set<edge>, all_edges: edge[]): void {
     //
     // Create a stack to store the edges we are checking
@@ -681,8 +826,14 @@ abstract class edge {
       });
     }
   }
-  //
-  // Find edges that are directly adjacent
+
+  /**
+   * Find edges that are directly adjacent to the given edge.
+   *
+   * @param edge The edge to find neighbors for.
+   * @param all_edges An array containing all available edges.
+   * @returns Set<edge> A set of neighboring edges.
+   */
   #immediate_neighbors(edge: edge, all_edges: edge[]): Set<edge> {
     //
     // Create a set to store the neighbors
@@ -705,27 +856,63 @@ abstract class edge {
 
     return neighbors;
   }
-  //
-  // Add this method to the abstract edge class
+
+  /**
+   * Abstract method to determine if resizing this edge increases the panel size.
+   *
+   * @param change_x The change in the x-axis.
+   * @param change_y The change in the y-axis.
+   * @returns boolean True if resizing increases the size, false otherwise.
+   */
   abstract increases_size(change_x: number, change_y: number): boolean;
-  //
-  // Check if two edges share a border
+
+  /**
+   * Abstract method to check if two edges share a border.
+   *
+   * @param rect1 The DOMRect of the first edge.
+   * @param rect2 The DOMRect of the second edge.
+   * @param alignment The alignment of the edges ("vertical" or "horizontal").
+   * @returns boolean True if the edges share a border, false otherwise.
+   */
   abstract share_border(
     rect1: DOMRect,
     rect2: DOMRect,
     alignment: "vertical" | "horizontal" | undefined
   ): boolean;
-  //
-  // Abstract methods to be implemented by subclasses
+
+  /**
+   * Abstract method to create the HTML element for the edge.
+   *
+   * @returns HTMLElement The created edge element.
+   */
   abstract create_edge(): HTMLElement;
+
+  /**
+   * Abstract method to resize the associated panel based on the mouse movement.
+   *
+   * @param change_x The change in the x-axis.
+   * @param change_y The change in the y-axis.
+   */
   abstract resize(change_x: number, change_y: number): void;
 }
-//
-// Base class for horizontal edges (top and bottom)
-abstract class horizontal_edge extends edge {
+
+/**
+ * Base class for horizontal edges (top and bottom).
+ */
+export abstract class horizontal_edge extends edge {
+  /**
+   * @var "vertical" | "horizontal" The alignment of the edge.
+   */
   public alignment: "vertical" | "horizontal" = "horizontal";
-  //
-  // Check if two edges share a border (with better tolerance)
+
+  /**
+   * Check if two horizontal edges share a border.
+   *
+   * @param rect1 The DOMRect of the first edge.
+   * @param rect2 The DOMRect of the second edge.
+   * @param alignment The alignment of the edges (should be "horizontal").
+   * @returns boolean True if the edges share a border, false otherwise.
+   */
   share_border(
     rect1: DOMRect,
     rect2: DOMRect,
@@ -734,7 +921,7 @@ abstract class horizontal_edge extends edge {
     if (!alignment) return false;
     //
     // Define the closeness threshold
-    const closeness = this.panel.border_closeness;
+    const closeness = this.closeness;
     //
 
     // For horizontal edges (top/bottom borders)
@@ -753,12 +940,24 @@ abstract class horizontal_edge extends edge {
   //
   //
 }
-//
-// Base class for vertical edges (left and right)
-abstract class vertical_edge extends edge {
+
+/**
+ * Base class for vertical edges (left and right).
+ */
+export abstract class vertical_edge extends edge {
+  /**
+   * @var "vertical" | "horizontal" The alignment of the edge.
+   */
   public alignment: "vertical" | "horizontal" = "vertical";
-  //
-  // Check if two edges share a border (with better tolerance)
+
+  /**
+   * Check if two vertical edges share a border.
+   *
+   * @param rect1 The DOMRect of the first edge.
+   * @param rect2 The DOMRect of the second edge.
+   * @param alignment The alignment of the edges (should be "vertical").
+   * @returns boolean True if the edges share a border, false otherwise.
+   */
   share_border(
     rect1: DOMRect,
     rect2: DOMRect,
@@ -767,7 +966,7 @@ abstract class vertical_edge extends edge {
     if (!alignment) return false;
     //
     // Define the closeness threshold
-    const closeness = this.panel.border_closeness;
+    const closeness = this.closeness;
     //
     // Check if edges are close enough horizontally
     const touching =
@@ -781,13 +980,23 @@ abstract class vertical_edge extends edge {
     return touching && vertical_overlap;
   }
 }
-//
-// Top border region implementation
-class top extends horizontal_edge {
+
+/**
+ * Implementation for the top border region of a panel.
+ */
+export class top extends horizontal_edge {
+  /**
+   * @returns edge | undefined The bottom edge of the panel.
+   */
   get opposite_edge(): edge | undefined {
     return this.panel.edges.get("bottom");
   }
 
+  /**
+   * Create the HTML element for the top edge.
+   *
+   * @returns HTMLElement The created div element for the top edge.
+   */
   create_edge(): HTMLElement {
     const el = document.createElement("div");
 
@@ -795,12 +1004,18 @@ class top extends horizontal_edge {
     el.style.top = "0";
     el.style.left = "0";
     el.style.right = "0";
-    el.style.height = `${this.panel.threshold}px`;
+    el.style.height = `${top.threshold}px`;
     el.style.cursor = "ns-resize";
 
     return el;
   }
 
+  /**
+   * Resize the panel when the top edge is dragged.
+   *
+   * @param change_x The change in the x-axis (not used for top edge).
+   * @param change_y The change in the y-axis. Negative value increases height.
+   */
   resize(change_x: number, change_y: number): void {
     //
     // Calculate the new height for the panel (prevent negative values)
@@ -827,19 +1042,35 @@ class top extends horizontal_edge {
     // save the new height
     this.panel.dimensions.height = new_height;
   }
-  //
-  //
+
+  /**
+   * Indicates if resizing this edge increases the panel's size.
+   *
+   * @param change_x The change in the x-axis.
+   * @param change_y The change in the y-axis.
+   * @returns boolean True if dragging upwards increases the height.
+   */
   increases_size(change_x: number, change_y: number): boolean {
     return change_y < 0;
   }
 }
 
-// Bottom border region
-class bottom extends horizontal_edge {
+/**
+ * Implementation for the bottom border region of a panel.
+ */
+export class bottom extends horizontal_edge {
+  /**
+   * @returns edge | undefined The top edge of the panel.
+   */
   get opposite_edge(): edge | undefined {
     return this.panel.edges.get("top");
   }
 
+  /**
+   * Create the HTML element for the bottom edge.
+   *
+   * @returns HTMLElement The created div element for the bottom edge.
+   */
   create_edge(): HTMLElement {
     const el = document.createElement("div");
 
@@ -847,13 +1078,18 @@ class bottom extends horizontal_edge {
     el.style.bottom = "0";
     el.style.left = "0";
     el.style.right = "0";
-    el.style.height = `${this.panel.threshold}px`;
+    el.style.height = `${bottom.threshold}px`;
     el.style.cursor = "ns-resize";
 
     return el;
   }
-  //
-  // Resize the panel
+
+  /**
+   * Resize the panel when the bottom edge is dragged.
+   *
+   * @param change_x The change in the x-axis (not used for bottom edge).
+   * @param change_y The change in the y-axis. Positive value increases height.
+   */
   resize(change_x: number, change_y: number): void {
     const new_height = this.panel.element.offsetHeight + change_y;
 
@@ -869,19 +1105,35 @@ class bottom extends horizontal_edge {
     // save the new height
     this.panel.dimensions.height = new_height;
   }
-  //
-  //
+
+  /**
+   * Indicates if resizing this edge increases the panel's size.
+   *
+   * @param change_x The change in the x-axis.
+   * @param change_y The change in the y-axis.
+   * @returns boolean True if dragging downwards increases the height.
+   */
   increases_size(change_x: number, change_y: number): boolean {
     return change_y > 0;
   }
 }
-//
-// Left border region
-class left extends vertical_edge {
+
+/**
+ * Implementation for the left border region of a panel.
+ */
+export class left extends vertical_edge {
+  /**
+   * @returns edge | undefined The right edge of the panel.
+   */
   get opposite_edge(): edge | undefined {
     return this.panel.edges.get("right");
   }
 
+  /**
+   * Create the HTML element for the left edge.
+   *
+   * @returns HTMLElement The created div element for the left edge.
+   */
   create_edge(): HTMLElement {
     const el = document.createElement("div");
 
@@ -889,12 +1141,18 @@ class left extends vertical_edge {
     el.style.left = "0";
     el.style.top = "0";
     el.style.bottom = "0";
-    el.style.width = `${this.panel.threshold}px`;
+    el.style.width = `${left.threshold}px`;
     el.style.cursor = "ew-resize";
 
     return el;
   }
-  //
+
+  /**
+   * Resize the panel when the left edge is dragged.
+   *
+   * @param change_x The change in the x-axis. Negative value increases width.
+   * @param change_y The change in the y-axis (not used for left edge).
+   */
   resize(change_x: number, change_y: number): void {
     //
     // Calculate new width and left position (with minimum size protection)
@@ -921,19 +1179,35 @@ class left extends vertical_edge {
     // save the panels new width
     this.panel.dimensions.width = new_width;
   }
-  //
-  //
+
+  /**
+   * Indicates if resizing this edge increases the panel's size.
+   *
+   * @param change_x The change in the x-axis.
+   * @param change_y The change in the y-axis.
+   * @returns boolean True if dragging leftwards increases the width.
+   */
   increases_size(change_x: number, change_y: number): boolean {
     return change_x < 0;
   }
 }
-//
-// Right border region
-class right extends vertical_edge {
+
+/**
+ * Implementation for the right border region of a panel.
+ */
+export class right extends vertical_edge {
+  /**
+   * @returns edge | undefined The left edge of the panel.
+   */
   get opposite_edge(): edge | undefined {
     return this.panel.edges.get("left");
   }
 
+  /**
+   * Create the HTML element for the right edge.
+   *
+   * @returns HTMLElement The created div element for the right edge.
+   */
   create_edge(): HTMLElement {
     const el = document.createElement("div");
 
@@ -941,13 +1215,18 @@ class right extends vertical_edge {
     el.style.right = "0";
     el.style.top = "0";
     el.style.bottom = "0";
-    el.style.width = `${this.panel.threshold}px`;
+    el.style.width = `${right.threshold}px`;
     el.style.cursor = "ew-resize";
 
     return el;
   }
-  //
-  // Resize the panel
+
+  /**
+   * Resize the panel when the right edge is dragged.
+   *
+   * @param change_x The change in the x-axis. Positive value increases width.
+   * @param change_y The change in the y-axis (not used for right edge).
+   */
   resize(change_x: number, change_y: number): void {
     const new_width = this.panel.element.offsetWidth + change_x;
 
@@ -963,8 +1242,14 @@ class right extends vertical_edge {
     // save the panels new width
     this.panel.dimensions.width = new_width;
   }
-  //
-  //
+
+  /**
+   * Indicates if resizing this edge increases the panel's size.
+   *
+   * @param change_x The change in the x-axis.
+   * @param change_y The change in the y-axis.
+   * @returns boolean True if dragging rightwards increases the width.
+   */
   increases_size(change_x: number, change_y: number): boolean {
     return change_x > 0;
   }
