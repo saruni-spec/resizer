@@ -1,0 +1,8 @@
+{
+    "entryPoints": ["./doc.ts"],
+    "out": "./docs",
+    "name": "Resizer Module",
+    "theme": "default",
+    "exclude": ["./node_modules", "./test","../../../schema/v/code/schema.js" ],
+    "tsconfig": "./tsconfig.json"
+  }
