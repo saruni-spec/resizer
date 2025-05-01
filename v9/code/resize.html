@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Border resize</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="resize.css"/>
+    <script type="module">
+        import { resizer } from './resize.js';
+        //
+        //
+        window.onload = () => {
+            //
+            //Create an instance of the resizer class
+            new resizer();
+
+        }
+       
+    </script>
+</head>
+<body>
+    <div id="school">school</div>
+    <div id="class">class</div>
+    <div id="student">student</div>
+    <div id="stream">stream</div>
+    <div id="year">year</div>
+</body>
+</html>

@@ -3,9 +3,7 @@ body,html{
   padding:0;
   height:100%;
   width:100%;
-}
-*{
-  overflow: auto;
+  overflow: hidden;
 }
 
 .container{
@@ -21,7 +19,6 @@ body,html{
 #school{
   grid-area: school;
   background-color: violet;
-  border: 2px solid black;
  
 }
 #stream{

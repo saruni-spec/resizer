@@ -1,174 +1,276 @@
 import { view } from "../../../schema/v/code/schema.js";
 //
 // Adding resizable functionality to panels on a page
+// Modified resizer class to properly handle overflow
 export class resizer extends view {
+    container;
+    //
+    // the panels/sections on the grid
     panels;
+    //
+    //
+    // The clusters of edges
     clusters = new Map();
     //
-    // Store the viewport dimensions
-    viewport = [window.innerWidth, window.innerHeight];
-    constructor(parent, options) {
+    // The viewport/container dimensions
+    // To be used in edge positioning
+    client_width;
+    client_height;
+    client_left;
+    client_top;
+    get rect() {
+        return this.container.getBoundingClientRect();
+    }
+    constructor(
+    //
+    // The container for the panels
+    container = document.body, 
+    //
+    // View options
+    parent, options) {
         super(parent, options);
+        this.container = container;
         this.panels = new Map();
-        this.panels.set("school", new school(this));
-        this.panels.set("student", new student(this));
-        this.panels.set("class", new student_class(this));
-        this.panels.set("stream", new stream(this));
-        this.panels.set("year", new year(this));
-        this.panels.set("mid", new mid_panel(this));
         //
+        // Set the dimensions of the container
+        this.set_container_dimensions();
+        //
+        // Create the panels
+        this.create_panels();
         // Add all edges to the all_edges map
         this.create_clusters();
     }
     //
-    // Each edge has a rect property to get its dimensions
-    // We can use this to find the edges that share a border(each edge has at least 1 neighbor)
-    // A top edge can only have a bottom edge as a neighbor,a left edge can only have a right edge as a neighbor
-    // We can use this to find the edges that share a border
-    // Well pick an edge,find its neighbors and add them to a set and remove them from the all_edges array
-    // well the pick its neigbors and find their neighbors and add them to the set and remove them from the all_edges array until all edges are in a cluster
-    // We can do this by recursively calling a function that finds the neighbors of an edge
+    // Set container dimensions
+    set_container_dimensions() {
+        this.client_left = this.container.clientLeft;
+        this.client_top = this.container.clientTop;
+        if (this.container !== document.body) {
+            this.client_width = this.container.clientWidth;
+            this.client_height = this.container.clientHeight;
+        }
+        else {
+            this.client_width = window.innerWidth;
+            this.client_height = window.innerHeight;
+        }
+    }
     //
+    // Create the panels
+    create_panels() {
+        // Get the grid elements on the page
+        const panels = Array.from(this.container.children);
+        // Create the panels
+        panels.forEach((curr_panel, index) => {
+            this.panels.set(curr_panel.id || `panel-${index}`, new panel(curr_panel, this));
+        });
+    }
     // Put all the edges in a cluster
     create_clusters() {
+        // Create an array to store all the edges
         const all_edges = [];
+        // Get all the edges and add then to the all_edges array
         this.panels.forEach((panel) => {
             panel.edges.forEach((edge) => {
                 all_edges.push(edge);
             });
         });
+        //
+        // Create a map to store the clusters
         const clusters = new Map();
         let clusterCount = 0;
+        //
+        // Continue searching for clusters until all edges are assigned to a cluster
         while (all_edges.length > 0) {
+            //
+            // Get the first edge in the all_edges array
             const currentEdge = all_edges[0];
+            //
+            // Create a new cluster and add the current edge to it
             const cluster = new Set();
-            this.get_neighbors(currentEdge, cluster, all_edges);
+            //
+            // Find neighbors of the current edge
+            currentEdge.get_neigbors(cluster, all_edges);
+            //
+            // Add the cluster to the clusters map
             clusters.set(`cluster-${clusterCount}`, cluster);
             clusterCount++;
         }
+        //
+        // Assign clusters to each edge
         clusters.forEach((cluster, clusterName) => {
             cluster.forEach((edge) => {
                 edge.cluster = cluster;
             });
         });
+        //
+        // Save the clusters to the resizer object
+        this.clusters = clusters;
         return clusters;
     }
-    get_neighbors(edge, cluster, all_edges) {
-        const stack = [edge];
-        while (stack.length > 0) {
-            const current = stack.pop();
-            // Skip if already processed
-            if (cluster.has(current))
-                continue;
-            // Add to cluster and remove from all_edges
-            cluster.add(current);
-            const index = all_edges.indexOf(current);
-            if (index !== -1)
-                all_edges.splice(index, 1);
-            // Find neighbors and push to stack
-            const neighbors = this.get_neighbor(current, all_edges);
-            neighbors.forEach((neighbor) => {
-                if (!cluster.has(neighbor)) {
-                    stack.push(neighbor);
-                }
-            });
-        }
-    }
-    get_neighbor(edge, all_edges) {
-        const neighbors = new Set();
-        const type = edge.alignment;
-        // Filter edges of the same type (vertical/horizontal)
-        const sameTypeEdges = all_edges.filter((e) => e.alignment === type);
-        // Check each edge for shared border
-        sameTypeEdges.forEach((otherEdge) => {
-            if (this.share_border(edge.rect, otherEdge.rect, type)) {
-                neighbors.add(otherEdge);
-            }
-        });
-        return neighbors;
-    }
-    //
-    // Check if two edges share a border
-    share_border(rect1, rect2, alignment) {
-        if (!alignment) {
-            return false;
-        }
-        //
-        // Check if the edges share a border by checking if they overlap
-        // If the edges are vertical, we check if the left or right edge of one edge is within the other edge
-        // If the edges are horizontal, we check if the top or bottom edge of one edge is within the other edge
-        if (alignment === "vertical") {
-            return ((rect1.left >= rect2.left && rect1.left <= rect2.right) ||
-                (rect1.right >= rect2.left && rect1.right <= rect2.right));
-        }
-        else {
-            return ((rect1.top >= rect2.top && rect1.top <= rect2.bottom) ||
-                (rect1.bottom >= rect2.top && rect1.bottom <= rect2.bottom));
-        }
-    }
 }
-//
-/// A panel is a section on a grid/page
+// An area on the grid
 class panel extends view {
+    element;
     //
-    // Store regions in a Map for direct access by border type
+    saved_dimensions = "the dimensions saved on each resize foe each panel";
+    //
+    // The edges of a panel,ie its border regions
     edges = new Map();
     //
-    // The element representing the panel
-    element;
-    constructor(panel_id, parent, options) {
-        super(parent, options);
-        this.element = this.get_element(panel_id);
-        //
-        // Added relative positioning for proper region placement
-        this.element.style.position = "relative";
-        //
-        // Add the border regions
-        this.get_regions(parent.viewport[0], parent.viewport[1]);
-    }
+    // The minimum size of a panel
+    min_panel_size = 40;
     //
-    // Get the border regions of this panel
-    get_regions(vw, vh) {
-        const threshold = edge.threshold;
-        const rect = this.element.getBoundingClientRect();
-        //
-        // Only create borders that aren't at viewport edges
-        // Top border
-        if (rect.top > threshold)
-            this.edges.set("top", new top(this));
-        //
-        // Bottom border
-        if (rect.bottom < vh - threshold)
-            this.edges.set("bottom", new bottom(this));
-        //
-        // Left border
-        if (rect.left > threshold)
-            this.edges.set("left", new left(this));
-        //
-        // Right border
-        if (rect.right < vw - threshold)
-            this.edges.set("right", new right(this));
-    }
+    // the edge currently being resized
+    resizing_edge;
     //
-    // Get the dimensions of the panel from the DOMrect
+    // Get the dimensions of the panel
     get rect() {
         return this.element.getBoundingClientRect();
     }
     //
-    // Get the dimensions of the panel from its css styling
-    get style() {
-        //
-        // Use the getComputedStyles to get the panels css properties
+    // Get the dimensions of the panel from its latest css styling
+    get computed_style() {
         const panel_styles = window.getComputedStyle(this.element);
-        //
-        // Get and parse the top, left, width and height of the panel
-        const panel_dimensions = {
-            height: parseInt(panel_styles.height.split("p")[0]),
-            width: parseInt(panel_styles.width.split("p")[0]),
-            top: parseInt(panel_styles.top.split("p")[0]),
-            left: parseInt(panel_styles.left.split("p")[0]),
+        return {
+            height: parseInt(panel_styles.height),
+            width: parseInt(panel_styles.width),
+            top: parseInt(panel_styles.top) || 0,
+            left: parseInt(panel_styles.left) || 0,
         };
-        return panel_dimensions;
+    }
+    //
+    // Check if the panel can be resized
+    get cant_resize() {
+        return this.computed_style.width === this.min_panel_size;
+    }
+    constructor(element, parent, options) {
+        super(parent, options);
+        this.element = element;
+        //
+        // Add relative positioning for proper region placement
+        this.element.style.position = "relative";
+        //
+        // Set a minimum size for the panel
+        this.element.style.minWidth = `${this.min_panel_size}px`;
+        this.element.style.minHeight = `${this.min_panel_size}px`;
+        //
+        // Checked for saved dimensions in local storage
+        const saved_dimensions = localStorage.getItem(this.saved_dimensions);
+        //
+        if (saved_dimensions) {
+            try {
+                const dimensions = JSON.parse(saved_dimensions);
+                // Make sure we have an ID for this panel
+                const panelId = this.element.id || "panel-unknown";
+                const this_panel = dimensions[panelId];
+                if (this_panel) {
+                    // Apply the saved dimensions
+                    if (this_panel.top)
+                        this.element.style.top = `${this_panel.top}px`;
+                    if (this_panel.left)
+                        this.element.style.left = `${this_panel.left}px`;
+                    if (this_panel.height)
+                        this.element.style.height = `${this_panel.height}px`;
+                    if (this_panel.width)
+                        this.element.style.width = `${this_panel.width}px`;
+                }
+            }
+            catch (e) {
+                console.error("Error loading saved dimensions", e);
+            }
+        }
+        //
+        // Add the border regions
+        this.#get_regions();
+        //
+        // Add scroll listener to the panel element
+        // To adjust edge positions when we scroll
+        this.element.addEventListener("scroll", () => this.panel_scroll());
+    }
+    //
+    // Adjust edge positions when we scroll on the panel
+    panel_scroll() {
+        //
+        //
+        const scrollLeft = this.element.scrollLeft;
+        const scrollTop = this.element.scrollTop;
+        //
+        // Adjust the edges for the scroll
+        this.edges.forEach((edge) => edge.adjust_on_scroll(scrollLeft, scrollTop));
+    }
+    //
+    // Get the border regions of this panel with improved positioning
+    // Modify the #get_regions method in the panel class
+    #get_regions() {
+        //
+        //
+        const threshold = edge.threshold;
+        //
+        // Get the panels dimensions to later compare them to the container
+        const rect = this.rect;
+        //
+        // Get the conatiner dimensions
+        const container = this.parent;
+        //
+        // Comapre the panels dimensions to the containers dimensions
+        const panel_left = Math.round(rect.left - container.rect.left);
+        const panel_top = Math.round(rect.top - container.rect.top);
+        const panel_right = Math.round(panel_left + rect.width);
+        const panel_bottom = Math.round(panel_top + rect.height);
+        //
+        // Check for scroll on the ponel
+        const has_vertical_scroll = this.element.scrollHeight > this.element.clientHeight;
+        const has_horizontal_scroll = this.element.scrollWidth > this.element.clientWidth;
+        //
+        // Check for the panels bounderies
+        const edge_options = {
+            top: panel_top > threshold,
+            bottom: Math.abs(panel_bottom - container.client_height) > threshold,
+            left: panel_left > threshold,
+            right: Math.abs(panel_right - container.client_width) > threshold,
+        };
+        //
+        // Check for scroll bar width and height
+        const scroll_bar_width = this.element.offsetWidth - this.element.clientWidth;
+        const scroll_bar_height = this.element.offsetHeight - this.element.clientHeight;
+        //
+        // Disable left/right resize if scrollbar is present near container edges
+        // Disable top/bottom resize if scrollbar is present near container edges
+        // Check for vertical scrollbars
+        if (has_vertical_scroll) {
+            //
+            //
+            if (panel_left <= threshold + scroll_bar_width) {
+                edge_options.left = false;
+            }
+            if (panel_right >=
+                container.client_width - threshold - scroll_bar_width) {
+                edge_options.right = false;
+            }
+        }
+        //
+        // Check for horizontal scrollbars
+        if (has_horizontal_scroll) {
+            // Similar logic for horizontal scrollbars
+            if (panel_top <= threshold + scroll_bar_height) {
+                edge_options.top = false;
+            }
+            if (panel_bottom >=
+                container.client_height - threshold - scroll_bar_height) {
+                edge_options.bottom = false;
+            }
+        }
+        //
+        // Create the edges based on the edge_options
+        //
+        if (edge_options.top)
+            this.edges.set("top", new top(this));
+        if (edge_options.bottom)
+            this.edges.set("bottom", new bottom(this));
+        if (edge_options.left)
+            this.edges.set("left", new left(this));
+        if (edge_options.right)
+            this.edges.set("right", new right(this));
     }
     //
     // Change the dimensions of the panel using its css properties
@@ -186,230 +288,427 @@ class panel extends view {
     }
 }
 //
-// Concrete panel implementations (remain unchanged)
-export class school extends panel {
-    constructor(parent, options) {
-        super("school", parent, options);
-    }
-}
-export class student extends panel {
-    constructor(parent, options) {
-        super("student", parent, options);
-    }
-}
-export class student_class extends panel {
-    constructor(parent, options) {
-        super("class", parent, options);
-    }
-}
-export class stream extends panel {
-    constructor(parent, options) {
-        super("stream", parent, options);
-    }
-}
-export class year extends panel {
-    constructor(parent, options) {
-        super("year", parent, options);
-    }
-}
-export class mid_panel extends panel {
-    constructor(parent, options) {
-        super("mid", parent, options);
-    }
-}
-//
-//  The mouse down event should be handled in the region class because:
-//  Each region knows its own resize behavior (top/bottom vs left/right)
-//  The region contains the physical element being interacted with
-//  Regions manage their own interactions
-// The base edge class
+// Represents a border of a panel
 class edge {
     panel;
-    static threshold = 20;
+    //
+    // The threshold for edge detection
+    // How close we need to be to an edge to detect it
+    static threshold = 5;
+    //
+    // how close edges need to be to be considered neighbors
+    closeness = 30;
+    //
+    // The element representing the edge
     element;
+    //
+    // The starting position of a resize operation
     resize_start;
-    alignment;
+    //
+    // The alignment of the edge (vertical or horizontal)
+    alignment = "vertical";
+    //
+    // The cluster this edge belongs to
     cluster;
-    color = "transparent";
+    //
+    // The initial scroll position of the panel
+    // To adjust edge position for scroll
+    initial_scroll = [0, 0];
+    //
+    // Get the dimensions of the edge
+    get rect() {
+        return this.element.getBoundingClientRect();
+    }
     constructor(panel) {
         this.panel = panel;
+        //
+        // Create an edge
         this.element = this.create_edge();
+        //
+        // Add this edge to the panel
         this.panel.element.appendChild(this.element);
         //
-        // Add repeating styles to the element
+        // Style the edge
         this.element.style.position = "absolute";
         this.element.style.zIndex = "2";
         this.element.classList.add("edge");
         //
-        // Add mouse event listeners
-        this.element.onmousedown = (evt) => this.on_mouse_down(evt);
-        document.addEventListener("mousemove", (evt) => this.on_mouse_move(evt));
-        document.addEventListener("mouseup", (evt) => this.on_mouse_up(evt));
-        this.element.addEventListener("mouseenter", () => this.on_mouse_enter());
-        this.element.addEventListener("mouseleave", () => this.on_mouse_leave());
+        // Add mouse event listeners with passive: false for better performance
+        this.element.addEventListener("mousedown", (evt) => this.#on_mouse_down(evt), { passive: false });
+        //
+        // Use document for mouse move and up to capture events outside the element
+        document.addEventListener("mousemove", (evt) => this.#on_mouse_move(evt));
+        document.addEventListener("mouseup", () => this.#on_mouse_up());
+        //
+        // Visual feedback on hover
+        this.element.addEventListener("mouseenter", () => this.#on_mouse_enter());
+        //
+        this.element.addEventListener("mouseleave", () => this.#on_mouse_leave());
     }
     //
-    // Mouse down event handler
-    on_mouse_down(e) {
+    // Adjust edge position for scroll
+    adjust_on_scroll(scroll_left, scroll_top) {
+        //
+        // Different handling based on edge type
+        if (this instanceof vertical_edge) {
+            //
+            // For vertical edges (left/right), adjust for horizontal scroll
+            this.element.style.transform = `translateX(${scroll_left}px)`;
+        }
+        else if (this instanceof horizontal_edge) {
+            //
+            // For horizontal edges (top/bottom), adjust for vertical scroll
+            this.element.style.transform = `translateY(${scroll_top}px)`;
+        }
+    }
+    // Mouse down handler with proper scroll tracking
+    #on_mouse_down(e) {
+        //
+        // PRevent the default behavior
+        // Which is text selection
         e.preventDefault();
+        //
+        //Prevent the event from bubbling up the DOM tree
+        // This prevents the panel from being dragged
+        e.stopPropagation();
+        //
+        // Store the initial mouse position
         this.resize_start = [e.clientX, e.clientY];
+        //
+        // Store the initial scroll position
+        this.initial_scroll = [
+            this.panel.element.scrollLeft,
+            this.panel.element.scrollTop,
+        ];
     }
-    //
-    // When the mouse moves, resize the panel
-    on_mouse_move(e) {
+    // Mouse move handler with scroll compensation
+    #on_mouse_move(e) {
         //
         // If resize hasn't started, do not resize
         if (!this.resize_start)
             return;
         //
         // Calculate the difference from the start position
-        const change_x = e.clientX - this.resize_start[0];
-        const change_y = e.clientY - this.resize_start[1];
+        let change_x = e.clientX - this.resize_start[0];
+        let change_y = e.clientY - this.resize_start[1];
         //
         // Resize all edges in the cluster
-        if (this.cluster) {
-            this.cluster.forEach((edge) => {
-                edge.resize(edge.panel.style, change_x, change_y);
-            });
-        }
+        if (!this.cluster)
+            return;
+        //
+        //
+        this.cluster.forEach((edge) => {
+            //
+            // Resize the edges in this cluster
+            edge.resize(edge.panel.computed_style, change_x, change_y);
+            //
+            // Save the edge being resized
+            edge.panel.resizing_edge = edge;
+            //
+            //
+            // when we get to the panels min width or height,
+            // We start resizing the opposite edge and all the same cluster
+            // We will need to get the opposite edge (top/bottom or left/right)
+            // and resize it
+            if (edge.panel.cant_resize) {
+                //
+                const opposite_edge = edge.opposite_edge;
+                //
+                if (!opposite_edge) {
+                    change_x = 0;
+                    change_y = 0;
+                    return;
+                }
+                //
+                // get its cluster and resize all edges in the cluster
+                opposite_edge.cluster?.forEach((edge) => {
+                    //
+                    edge.resize(edge.panel.computed_style, change_x, change_y);
+                });
+            }
+        });
         //
         // Update the start position for the next move event
         this.resize_start = [e.clientX, e.clientY];
     }
     //
     // Mouse up event handler
-    on_mouse_up(e) {
+    #on_mouse_up() {
+        if (!this.resize_start)
+            return;
         //
         // Reset the resize_start property
         this.resize_start = undefined;
+        //
+        // Recreate clusters as panel dimensions have changed
+        this.panel.parent.create_clusters();
+        //
+        // Save the dimensions of the panel
+        this.cluster?.forEach((edge) => {
+            edge.save_new_dimensions();
+        });
     }
-    get rect() {
-        return this.element.getBoundingClientRect();
+    //
+    // Save the panels current dimensions to local storage
+    // new_left,new_width,new_height,new_top
+    // Then, update the save_new_dimensions method in the edge class
+    save_new_dimensions() {
+        // Get existing saved dimensions or create a new object
+        const saved = localStorage.getItem(this.panel.saved_dimensions);
+        let saved_obj;
+        if (saved) {
+            try {
+                saved_obj = JSON.parse(saved);
+            }
+            catch (e) {
+                console.error("Error parsing saved dimensions", e);
+                saved_obj = {};
+            }
+        }
+        // Update or add this panel's dimensions
+        saved_obj[this.panel.element.id] = this.panel.computed_style;
+        // Save back to localStorage
+        localStorage.setItem(this.panel.saved_dimensions, JSON.stringify(saved_obj));
     }
-    // 3. Hover handlers
-    on_mouse_enter() {
+    //
+    // Visual feedback when hovering over edges
+    #on_mouse_enter() {
         if (!this.cluster)
             return;
         this.cluster.forEach((edge) => {
-            edge.element.style.backgroundColor = "red"; // Highlight color
+            edge.element.style.backgroundColor = "rgba(0, 120, 215, 0.5)";
+            edge.element.style.transition = "background-color 0.2s ease";
         });
     }
-    on_mouse_leave() {
+    //
+    // Remove visual feedback when leaving the edge
+    #on_mouse_leave() {
         if (!this.cluster)
             return;
         this.cluster.forEach((edge) => {
-            edge.element.style.backgroundColor = this.color;
+            edge.element.style.backgroundColor = "transparent";
         });
+    }
+    //
+    // Find all connected edges (cluster detection)
+    get_neigbors(cluster, all_edges) {
+        // Create a stack to store the edges we are checking
+        const stack = [this];
+        // Continue until the stack is empty
+        while (stack.length > 0) {
+            // Get the current edge from the stack
+            const current = stack.pop();
+            // Skip if the edge is already in the cluster
+            if (cluster.has(current))
+                continue;
+            // Add the current edge to the cluster
+            cluster.add(current);
+            // Find the index of the current edge in the all_edges array
+            const index = all_edges.indexOf(current);
+            // Remove the edge from the all_edges array
+            if (index !== -1)
+                all_edges.splice(index, 1);
+            // Find its neighbors and push to stack
+            const neighbors = this.#immediate_neighbors(current, all_edges);
+            // Loop through the neighbors
+            neighbors.forEach((neighbor) => {
+                // If the neighbor is not already in the cluster, add it to the stack
+                if (!cluster.has(neighbor)) {
+                    stack.push(neighbor);
+                }
+            });
+        }
+    }
+    //
+    // Find edges that are directly adjacent
+    #immediate_neighbors(edge, all_edges) {
+        // Create a set to store the neighbors
+        const neighbors = new Set();
+        // Get the type of the edge (vertical or horizontal)
+        const type = edge.alignment;
+        // Filter edges of the same type (vertical/horizontal)
+        const same_type_edges = all_edges.filter((e) => e.alignment === type);
+        // Check each edge for shared border
+        same_type_edges.forEach((otherEdge) => {
+            // If the edges share a border, add the other edge to the neighbors set
+            if (this.share_border(edge.rect, otherEdge.rect, type)) {
+                neighbors.add(otherEdge);
+            }
+        });
+        return neighbors;
     }
 }
-//
 // Base class for horizontal edges (top and bottom)
 class horizontal_edge extends edge {
-    //
-    //
     alignment = "horizontal";
-    neighbors = new Map();
+    // Check if two edges share a border (with better tolerance)
+    share_border(rect1, rect2, alignment) {
+        if (!alignment)
+            return false;
+        //
+        // Define the closeness threshold
+        const closeness = this.closeness;
+        //
+        // For horizontal edges (top/bottom borders)
+        // Check if edges are close enough vertically
+        const touching = Math.abs(rect1.bottom - rect2.top) < closeness ||
+            Math.abs(rect2.bottom - rect1.top) < closeness;
+        // Check if they overlap horizontally
+        const horizontal_overlap = Math.max(rect1.left, rect2.left) < Math.min(rect1.right, rect2.right);
+        return touching && horizontal_overlap;
+    }
 }
-//
 // Base class for vertical edges (left and right)
 class vertical_edge extends edge {
-    //
-    //
     alignment = "vertical";
-    neighbors = new Map();
+    // Check if two edges share a border (with better tolerance)
+    share_border(rect1, rect2, alignment) {
+        if (!alignment)
+            return false;
+        //
+        // Define the closeness threshold
+        const closeness = this.closeness;
+        //
+        // Check if edges are close enough horizontally
+        const touching = Math.abs(rect1.right - rect2.left) < closeness ||
+            Math.abs(rect2.right - rect1.left) < closeness;
+        //
+        // Check if they overlap vertically
+        const vertical_overlap = Math.max(rect1.top, rect2.top) < Math.min(rect1.bottom, rect2.bottom);
+        return touching && vertical_overlap;
+    }
 }
 //
 // Top border region implementation
 class top extends horizontal_edge {
-    color = "gold";
+    get opposite_edge() {
+        return this.panel.edges.get("bottom");
+    }
     create_edge() {
         const el = document.createElement("div");
-        //
         // Style application
         el.style.top = "0";
         el.style.left = "0";
         el.style.right = "0";
-        el.style.height = `${edge.threshold}px`;
-        el.style.backgroundColor = "gold";
-        //
-        // Cursor style assignment
+        el.style.height = `${top.threshold}px`;
         el.style.cursor = "ns-resize";
         return el;
     }
     resize(rect, change_x, change_y) {
         //
-        // Calculate the new height for the panel
-        const new_height = rect.height - change_y;
-        //
-        // Apply the new height and top position
-        // Since the panel is positioned relative, we adjust its top position by the change in y
+        // Calculate the new height for the panel (prevent negative values)
+        const new_height = this.panel.element.offsetHeight - change_y;
         const new_top = rect.top + change_y;
         this.panel.top = new_top;
+        //
+        // Only adjust height if we're not at minimum height,and the change increases the size
+        if (this.panel.cant_resize &&
+            !this.panel.resizing_edge?.increases_size(change_x, change_y))
+            return;
         this.panel.height = new_height;
     }
+    //
+    //
+    increases_size(change_x, change_y) {
+        return change_y < 0;
+    }
 }
-//
 // Bottom border region
 class bottom extends horizontal_edge {
-    color = "silver";
+    get opposite_edge() {
+        return this.panel.edges.get("top");
+    }
     create_edge() {
         const el = document.createElement("div");
+        // Position at bottom of panel
         el.style.bottom = "0";
         el.style.left = "0";
         el.style.right = "0";
-        el.style.height = `${edge.threshold}px`;
-        el.style.backgroundColor = "silver";
+        el.style.height = `${bottom.threshold}px`;
         el.style.cursor = "ns-resize";
         return el;
     }
+    //
+    // Resize the panel
     resize(rect, change_x, change_y) {
-        //
-        // Increase the height of the panel. The position does not need to be changed
-        const bottom_height = rect.height + change_y;
-        this.panel.height = bottom_height;
+        const currentOffsetHeight = this.panel.element.offsetHeight;
+        const newOffsetHeight = currentOffsetHeight + change_y;
+        if (this.panel.cant_resize &&
+            !this.panel.resizing_edge?.increases_size(change_x, change_y))
+            return;
+        this.panel.height = newOffsetHeight;
+    }
+    //
+    //
+    increases_size(change_x, change_y) {
+        return change_y > 0;
     }
 }
 //
 // Left border region
 class left extends vertical_edge {
-    color = "gold";
+    get opposite_edge() {
+        return this.panel.edges.get("right");
+    }
     create_edge() {
         const el = document.createElement("div");
+        // Position at left of panel
         el.style.left = "0";
         el.style.top = "0";
         el.style.bottom = "0";
-        el.style.width = `${edge.threshold}px`;
-        el.style.backgroundColor = "gold";
+        el.style.width = `${left.threshold}px`;
         el.style.cursor = "ew-resize";
         return el;
     }
+    //
     resize(rect, change_x, change_y) {
         //
-        // Calculate new width and left position
-        const new_width = rect.width - change_x;
-        this.panel.width = new_width;
+        // Calculate new width and left position (with minimum size protection)
+        const new_width = this.panel.element.offsetWidth - change_x;
         const new_left = rect.left + change_x;
         this.panel.left = new_left;
+        //
+        // Only adjust the width if we're not at minimum width and the change increases the size
+        if (this.panel.cant_resize &&
+            !this.panel.resizing_edge?.increases_size(change_x, change_y))
+            return;
+        this.panel.width = new_width;
+    }
+    //
+    //
+    increases_size(change_x, change_y) {
+        return change_x < 0;
     }
 }
-///
+//
 // Right border region
 class right extends vertical_edge {
-    color = "silver";
+    get opposite_edge() {
+        return this.panel.edges.get("left");
+    }
     create_edge() {
         const el = document.createElement("div");
+        // Position at right of panel
         el.style.right = "0";
         el.style.top = "0";
         el.style.bottom = "0";
-        el.style.width = `${edge.threshold}px`;
-        el.style.backgroundColor = "silver";
+        el.style.width = `${right.threshold}px`;
         el.style.cursor = "ew-resize";
         return el;
     }
+    //
+    // Resize the panel
     resize(rect, change_x, change_y) {
-        //
-        // Increase the width of the panel. The position does not need to be changed
-        const right_width = rect.width + change_x;
-        this.panel.width = right_width;
+        const current_offset_width = this.panel.element.offsetWidth;
+        const new_offset_width = current_offset_width + change_x;
+        if (this.panel.cant_resize &&
+            !this.panel.resizing_edge?.increases_size(change_x, change_y))
+            return;
+        this.panel.width = new_offset_width;
+    }
+    //
+    //
+    increases_size(change_x, change_y) {
+        return change_x > 0;
     }
 }

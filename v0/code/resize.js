@@ -230,6 +230,8 @@ class panel {
     min_panel_size = parent.resizer_options?.min_panel_size || 40, 
     //
     // how close edges need to be to be considered neighbors
+    // shoukld be smaller than the min panel size to prevent borders in the same panel being neighbors
+    // Maybe should prevent borders from being neighbors if they are in the same panel directly in the neigghbor detection
     border_closeness = min_panel_size - 10, 
     //
     // The minimum size of a panel
@@ -461,11 +463,17 @@ class edge {
     // Adjust edge position for scroll
     adjust_on_scroll(scroll_left, scroll_top) {
         //
-        //adjust for horizontal scroll
-        this.element.style.transform = `translateX(${scroll_left}px)`;
-        //
-        // adjust for vertical scroll
-        this.element.style.transform = `translateY(${scroll_top}px)`;
+        // Different handling based on edge type
+        if (this instanceof vertical_edge) {
+            //
+            // For vertical edges (left/right), adjust for horizontal scroll
+            this.element.style.transform = `translateX(${scroll_left}px)`;
+        }
+        else if (this instanceof horizontal_edge) {
+            //
+            // For horizontal edges (top/bottom), adjust for vertical scroll
+            this.element.style.transform = `translateY(${scroll_top}px)`;
+        }
     }
     // Mouse down handler with proper scroll tracking
     #on_mouse_down(e) {

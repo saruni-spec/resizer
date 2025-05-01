@@ -4,9 +4,9 @@ body,html{
   height:100%;
   width:100%;
 }
-*{
-  overflow: auto;
-}
+/* *{
+  overflow: scroll;
+} */
 
 .container{
   width: 100%;
@@ -22,6 +22,7 @@ body,html{
   grid-area: school;
   background-color: violet;
   border: 2px solid black;
+  overflow: auto;
  
 }
 #stream{
